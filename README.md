@@ -87,11 +87,11 @@ Bushcraft: 45% toughness + 25% corrosion + 15% edge retention + 15% sharpening
 
 | Steel | Tough | Edge | Corr | Sharp | EDC | Hard Use | Kitchen | Bushcraft |
 |-------|-------|------|------|-------|-----|----------|---------|-----------|
-| CPM MagnaCut | 5.3 | 4.3 | 8.9 | 6.1 | 6.4 | 5.5 | 6.6 | 6.1 |
+| CPM MagnaCut | 6.6 | 4.2 | 6.3 | 1.9 | 5.1 | 5.1 | 4.6 | 5.5 |
 | Vanax | 5.1 | 4.1 | 10.0 | 8.0 | 7.0 | 6.0 | 7.2 | 6.6 |
 | CPM 3V | 8.0 | 3.4 | 2.9 | 5.5 | 4.5 | 6.1 | 4.2 | 5.7 |
-| CPM S35VN | 4.1 | 3.9 | 7.1 | 5.9 | 5.5 | 4.9 | 5.8 | 5.3 |
-| M390 | 2.6 | 4.5 | 7.2 | 4.4 | 5.1 | 3.9 | 5.4 | 4.4 |
+| CPM S35VN | 4.5 | 4.1 | 6.9 | 2.9 | 5.0 | 4.3 | 4.8 | 4.8 |
+| M390 | 3.1 | 5.3 | 8.9 | 1.8 | 5.6 | 3.9 | 5.4 | 4.7 |
 
 *Full results for all 134 steels in [`data/processed/all_predictions.csv`](data/processed/all_predictions.csv)*
 
@@ -100,7 +100,7 @@ Bushcraft: 45% toughness + 25% corrosion + 15% edge retention + 15% sharpening
 ```bash
 # Clone the repo
 git clone https://github.com/Steel-predictor-project/Steel-predictor.git
-cd steel-predictor
+cd Steel-predictor
 
 # Reproduce the model in one command (installs deps + runs the pipeline)
 ./run_training.sh
@@ -110,7 +110,9 @@ pip install -r requirements.txt
 python scripts/train_model_v2.py   # trains from data/processed/training_ready.csv
 ```
 
-Reproduces the published metrics exactly (edge-retention LOOCV MAE 0.391 on 48 CATRA steels, toughness r=0.96, corrosion r=0.89). The corrosion *validation* step compares against KnifeSteelNerds ratings, which are an external reference kept private (see [DATA_SOURCES.md](DATA_SOURCES.md)); it is skipped automatically when that data is absent, and the model's corrosion predictions (physics-based) reproduce regardless.
+Reproduces the edge-retention and toughness metrics exactly (edge-retention LOOCV MAE 0.391 on 48 CATRA steels; toughness r=0.96 on 12 Charpy steels) along with every prediction in `all_predictions.csv`.
+
+**Note on the corrosion r=0.89:** the corrosion *validation* step compares our physics predictions against KnifeSteelNerds ratings. That reference set is third-party and is **not redistributed** with this repo, so the r=0.89 figure is **not reproducible from a public clone** — the validation is skipped automatically when the data is absent (you will see "KSN validation data not present"). The corrosion *predictions themselves* are a deterministic physics calculation (matrix Cr / PREN) and reproduce fully. See [DATA_SOURCES.md](DATA_SOURCES.md) and [docs/methodology.md](docs/methodology.md#3-corrosion-resistance).
 
 **Output:**
 - `data/processed/all_predictions.csv` — scores for all 134 steels
