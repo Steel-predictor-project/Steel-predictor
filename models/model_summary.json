@@ -1,0 +1,72 @@
+{
+  "version": "2.0.0",
+  "methodology": {
+    "edge_retention": "XGBoost + RF + Ridge ensemble trained on CATRA TCC mm measurements (objective machine test)",
+    "toughness": "Physics-based model (CVF, PM, eutectoid boundary, matrix composition) calibrated against Charpy ft-lbs",
+    "corrosion_resistance": "Physics calculation from matrix Cr, PREN, and nitrogen content",
+    "ease_of_sharpening": "Physics-based inverse wear resistance (CVF, VC hardness, WC content)",
+    "use_case_scores": "Weighted combination of base properties with domain-specific weights"
+  },
+  "edge_retention_training_steels": 48,
+  "edge_retention_loocv_mae": 0.391,
+  "toughness_calibration": {
+    "calibration_mae": 0.683,
+    "correlation": 0.96,
+    "n_steels": 12,
+    "ridge_coefs": {
+      "vc_vol": -0.840572211238301,
+      "crc_vol": -0.29670612783551353,
+      "other_vol": -0.020647613863427436,
+      "pm": 0.0,
+      "pm_tool": 0.5793488972648956,
+      "stainless_x_cvf": -0.8479066591490207,
+      "ni": 0.0,
+      "eutectoid_c": 0.0
+    },
+    "ridge_intercept": 6.105640909638983
+  },
+  "corrosion_validation": {
+    "validation_mae": 1.362,
+    "correlation": 0.888,
+    "n_steels": 61,
+    "note": "Validated privately against 61 KnifeSteelNerds corrosion ratings; KSN data is an external validation reference only and is not redistributed. Figures shown are from that reference run."
+  },
+  "use_case_weights": {
+    "edc": {
+      "edge_retention": 0.3,
+      "corrosion_resistance": 0.35,
+      "toughness": 0.2,
+      "ease_of_sharpening": 0.15
+    },
+    "hard_use": {
+      "toughness": 0.5,
+      "edge_retention": 0.2,
+      "corrosion_resistance": 0.1,
+      "ease_of_sharpening": 0.2
+    },
+    "kitchen": {
+      "corrosion_resistance": 0.35,
+      "edge_retention": 0.3,
+      "ease_of_sharpening": 0.25,
+      "toughness": 0.1
+    },
+    "bushcraft": {
+      "toughness": 0.45,
+      "corrosion_resistance": 0.25,
+      "edge_retention": 0.15,
+      "ease_of_sharpening": 0.15
+    }
+  },
+  "feature_importance": {
+    "edge_retention": {
+      "vc_fraction": 0.4057,
+      "cvf": 0.2653,
+      "V": 0.1119,
+      "C": 0.0969,
+      "total_carbide_formers": 0.028,
+      "total_alloy_content": 0.0231,
+      "c_above_eutectoid": 0.0181,
+      "pren": 0.0104
+    }
+  }
+}

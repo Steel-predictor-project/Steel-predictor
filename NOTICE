@@ -1,0 +1,15 @@
+Steel Property Predictor
+Copyright 2026 The Steel Property Predictor Project contributors
+
+This product includes software developed by the Steel Property Predictor Project.
+
+The source code in this repository is licensed under the Apache License 2.0 (see LICENSE).
+
+The curated datasets under data/ and the trained model under models/ are licensed
+separately under the Creative Commons Attribution 4.0 International License
+(CC BY 4.0); see data/LICENSE. These cover only this project's own normalized
+compilation, derived features, and trained model parameters. The underlying
+factual source data (chemical compositions and laboratory measurements) is
+compiled from publicly available manufacturer datasheets and published
+literature, each cited in DATA_SOURCES.md, and remains the property of its
+respective publishers.

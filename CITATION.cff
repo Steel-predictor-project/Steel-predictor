@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+title: "Steel Property Predictor: Composition-Based Modeling of Martensitic Alloy Steels"
+message: "If you use this software, data, or model, please cite it as below."
+type: software
+authors:
+  - name: "The Steel Property Predictor Project"
+repository-code: "https://github.com/Steel-predictor-project/Steel-predictor"
+url: "https://steel-predictor-project.github.io/Steel-predictor/"
+abstract: >-
+  An open-source model that predicts the mechanical and wear properties of
+  high-carbon martensitic tool and cutlery steels (edge retention, toughness,
+  corrosion resistance, and ease of sharpening) directly from chemical
+  composition. Edge retention is trained on CATRA machine-cutting measurements;
+  toughness combines Charpy impact data with first-principles carbide-partition
+  physics; corrosion is derived from matrix chromium and PREN chemistry.
+keywords:
+  - machine-learning
+  - materials-science
+  - metallurgy
+  - knife-steel
+  - xgboost
+license: Apache-2.0
+version: 2.0.0
+date-released: 2026-06-28

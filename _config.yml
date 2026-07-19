@@ -1,0 +1,3 @@
+title: Steel Property Predictor
+description: Open-source ML model predicting knife steel properties (toughness, edge retention, corrosion resistance, ease of sharpening) from alloy composition.
+theme: jekyll-theme-cayman

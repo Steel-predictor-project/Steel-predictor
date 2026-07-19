@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+venv/
+.venv/
+env/
+
+# Raw source extractions are kept in the private repo (see DATA_SOURCES.md)
+data/raw/
+data/cleaned/
+data/pdfs/
+
+# Downloaded PDFs (binary, use scripts to re-download)
+data/pdfs/
+
+# Model output (weights are uploaded to backend, not committed)
+model/output/*.json
+
+# KSN ratings (validation reference only) and intermediate training artifacts
+# are never published, per the data-use policy
+data/training/
+data/raw/knifesteelnerds/
+
+# Environment
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/

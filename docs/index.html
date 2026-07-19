@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steel Property Predictor — Composition-Based Modeling of Martensitic Alloy Steels</title>
+    <meta name="description" content="ML + physics models that predict wear resistance, toughness, corrosion resistance, and machinability of martensitic tool and cutlery steels from chemical composition. 134 alloys, trained on CATRA and Charpy laboratory data.">
+    <meta property="og:title" content="Steel Property Predictor — Composition-Based Modeling of Martensitic Alloy Steels">
+    <meta property="og:description" content="Predicts the mechanical and wear properties of alloy steels from chemical composition using machine learning and physics-based metallurgy, trained on standardized CATRA and Charpy test data.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://steel-predictor-project.github.io/Steel-predictor">
+    <style>
+        :root {
+            --bg: #0d1117;
+            --surface: #161b22;
+            --border: #30363d;
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+            --accent: #f97316;
+            --accent-dim: #c2410c;
+            --link: #58a6ff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        header {
+            text-align: center;
+            padding: 3rem 0 2rem;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 3rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--accent), #fbbf24);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .tagline {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+        }
+
+        .badges {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+
+        .badge--accent {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .cta-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .cta {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .cta--primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .cta--primary:hover {
+            background: var(--accent-dim);
+            transform: translateY(-1px);
+        }
+
+        .cta--secondary {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .cta--secondary:hover {
+            border-color: var(--text-muted);
+            transform: translateY(-1px);
+        }
+
+        section {
+            margin-bottom: 3rem;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: var(--text);
+        }
+
+        p {
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            color: var(--accent);
+        }
+
+        .card p {
+            font-size: 0.9rem;
+            margin-bottom: 0;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .stat {
+            text-align: center;
+            padding: 1rem;
+            background: var(--surface);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 0.6rem 0.8rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        td {
+            color: var(--text);
+        }
+
+        .highlight {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .methodology-flow {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.8rem;
+            line-height: 1.8;
+            overflow-x: auto;
+            color: var(--text-muted);
+        }
+
+        .methodology-flow .step {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        footer {
+            border-top: 1px solid var(--border);
+            padding-top: 2rem;
+            margin-top: 3rem;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        footer a {
+            color: var(--link);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        a {
+            color: var(--link);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 1.8rem; }
+            .container { padding: 1rem; }
+            header { padding: 2rem 0 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Steel Property Predictor</h1>
+            <p class="tagline">Predicting the mechanical and wear properties of martensitic alloy steels from chemical composition</p>
+            <div class="badges">
+                <span class="badge badge--accent">134 alloys</span>
+                <span class="badge">4 property models</span>
+                <span class="badge">CATRA-trained ML</span>
+                <span class="badge">Apache-2.0 + CC BY 4.0</span>
+            </div>
+            <div class="cta-group">
+                <a href="https://github.com/Steel-predictor-project/Steel-predictor" class="cta cta--primary">View Source on GitHub</a>
+                <span class="cta cta--secondary" style="opacity:0.7;cursor:default;">Interactive tool — coming soon</span>
+            </div>
+        </header>
+
+        <section>
+            <h2>What Makes This Different</h2>
+            <p>Most steel comparisons come down to one person's subjective opinions. This project is built on <strong style="color: var(--text);">objective laboratory measurements</strong> — CATRA standardized wear tests, Charpy impact data, and first-principles carbide chemistry.</p>
+
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value">48</div>
+                    <div class="stat-label">CATRA Tests</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">0.39</div>
+                    <div class="stat-label">MAE (1-10 scale)</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">0.96</div>
+                    <div class="stat-label">Toughness Correlation</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">134</div>
+                    <div class="stat-label">Steels Ranked</div>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>How It Works</h2>
+            <div class="methodology-flow">
+                <span class="step">Composition Data</span> (C, Cr, V, Mo, W + 6 more elements + PM flag)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&#8595;<br>
+                <span class="step">Feature Engineering</span> (24 features: CVF, matrix Cr, PREN, VC fraction, interactions)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&#8595;<br>
+                <span class="step">ML Models</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Edge Retention &rarr; XGBoost + RF + Ridge ensemble (trained on CATRA TCC mm)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Toughness &rarr; Physics-informed Ridge (calibrated on Charpy ft-lbs)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Corrosion &rarr; Matrix Cr + PREN calculation (carbide partition chemistry)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Sharpening &rarr; CVF + carbide hardness model<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&#8595;<br>
+                <span class="step">Application Profiles</span> (property weightings for EDC / Hard Use / Kitchen / Bushcraft)
+            </div>
+        </section>
+
+        <section>
+            <h2>Models</h2>
+            <div class="grid">
+                <div class="card">
+                    <h3>Edge Retention</h3>
+                    <p>XGBoost + RandomForest + Ridge ensemble trained on 48 CATRA TCC machine measurements. LOOCV MAE: 34.8mm (0.39 on 1-10 scale).</p>
+                </div>
+                <div class="card">
+                    <h3>Toughness</h3>
+                    <p>Physics-informed Ridge regression calibrated against 12 Charpy impact tests. Captures carbide type effects (VC vs Cr7C3) and PM processing.</p>
+                </div>
+                <div class="card">
+                    <h3>Corrosion Resistance</h3>
+                    <p>First-principles calculation of effective matrix chromium after carbide partition. Accounts for V/Nb scavenging carbon before Cr.</p>
+                </div>
+                <div class="card">
+                    <h3>Ease of Sharpening</h3>
+                    <p>Carbide hardness model based on CVF and VC/WC content relative to sharpening stone hardness (alumina 2100 HV).</p>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Sample Rankings</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Steel</th>
+                        <th>Tough</th>
+                        <th>Edge</th>
+                        <th>Corr</th>
+                        <th>Sharp</th>
+                        <th>Best For</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>CPM MagnaCut</td>
+                        <td>5.3</td>
+                        <td>4.3</td>
+                        <td class="highlight">8.9</td>
+                        <td>6.1</td>
+                        <td>EDC</td>
+                    </tr>
+                    <tr>
+                        <td>CPM 3V</td>
+                        <td class="highlight">8.0</td>
+                        <td>3.4</td>
+                        <td>2.9</td>
+                        <td>5.5</td>
+                        <td>Hard Use</td>
+                    </tr>
+                    <tr>
+                        <td>Vanax</td>
+                        <td>5.1</td>
+                        <td>4.1</td>
+                        <td class="highlight">10.0</td>
+                        <td>8.0</td>
+                        <td>Kitchen</td>
+                    </tr>
+                    <tr>
+                        <td>CPM S35VN</td>
+                        <td>4.1</td>
+                        <td>3.9</td>
+                        <td>7.1</td>
+                        <td>5.9</td>
+                        <td>All-rounder</td>
+                    </tr>
+                    <tr>
+                        <td>M390</td>
+                        <td>2.6</td>
+                        <td class="highlight">4.5</td>
+                        <td>7.2</td>
+                        <td>4.4</td>
+                        <td>Slicing EDC</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p style="font-size: 0.85rem; margin-top: 0.5rem;">Full results for 134 steels available in the <a href="https://github.com/Steel-predictor-project/Steel-predictor/blob/main/data/processed/all_predictions.csv">predictions CSV</a>.</p>
+        </section>
+
+        <section>
+            <h2>Data Sources</h2>
+            <div class="grid">
+                <div class="card">
+                    <h3>CATRA TCC Tests</h3>
+                    <p>48 steels tested with standardized machine cutting protocol by Larrin Thomas (2020). Objective edge retention measurement.</p>
+                </div>
+                <div class="card">
+                    <h3>Manufacturer Data</h3>
+                    <p>Chemical compositions extracted from Crucible, Bohler-Uddeholm, Carpenter, Hitachi/Proterial, and Alleima technical data sheets.</p>
+                </div>
+                <div class="card">
+                    <h3>Charpy Impact</h3>
+                    <p>12 PM steels with room-temperature Charpy V-notch testing. Used to calibrate the physics-based toughness model.</p>
+                </div>
+                <div class="card">
+                    <h3>Validation</h3>
+                    <p>KnifeSteelNerds ratings used as independent validation benchmark (not training target). Our model is methodologically independent.</p>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Get Started</h2>
+            <div class="methodology-flow">
+                $ git clone https://github.com/Steel-predictor-project/Steel-predictor.git<br>
+                $ cd steel-predictor<br>
+                $ pip install -r requirements.txt<br>
+                $ python scripts/train_model_v2.py<br>
+                <br>
+                <span class="step"># Output:</span> predictions for 134 steels + serialized model weights
+            </div>
+            <p style="margin-top: 1rem;">Read the full <a href="https://github.com/Steel-predictor-project/Steel-predictor/blob/main/docs/methodology.md">methodology documentation</a> for details on each model.</p>
+        </section>
+
+        <footer>
+            <p>
+                <span>Interactive tool — coming soon</span> &middot;
+                <a href="https://github.com/Steel-predictor-project/Steel-predictor">GitHub</a> &middot;
+                <a href="https://github.com/Steel-predictor-project/Steel-predictor/blob/main/docs/methodology.md">Methodology</a> &middot;
+                <a href="https://github.com/Steel-predictor-project/Steel-predictor/blob/main/LICENSE">License (Apache-2.0)</a>
+            </p>
+            <p style="margin-top: 0.5rem;">An open-source research project</p>
+        </footer>
+    </div>
+</body>
+</html>
