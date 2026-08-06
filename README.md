@@ -212,6 +212,13 @@ This project uses two licenses:
 - **Methodology deep-dive:** [docs/methodology.md](docs/methodology.md)
 - **Project page:** [steel-predictor-project.github.io/Steel-predictor](https://steel-predictor-project.github.io/Steel-predictor)
 
+### Technical write-ups
+
+- [How We Built the Steel Property Predictor: A Technical Deep Dive](https://steel-predictor-project.github.io/Steel-predictor/technical-deep-dive.html)
+- [What Makes a Steel "Tough"? A Data-Driven Answer](https://steel-predictor-project.github.io/Steel-predictor/what-makes-a-steel-tough.html)
+- [How Carbon Content Actually Affects Knife Performance](https://steel-predictor-project.github.io/Steel-predictor/how-carbon-content-affects-performance.html)
+- [Powder Metallurgy vs Conventional Steel: What the Numbers Say](https://steel-predictor-project.github.io/Steel-predictor/pm-vs-conventional-steel.html)
+
 ---
 
 *An open-source research project. If this helped you understand or choose a steel, consider starring the repo.*

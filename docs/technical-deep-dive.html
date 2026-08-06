@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How We Built the Steel Property Predictor: A Technical Deep Dive</title>
+    <meta name="description" content="A technical deep dive into an XGBoost + RandomForest + Ridge ensemble that predicts knife steel properties from composition with only 48 training samples — feature engineering, small-data ML, and leave-one-out validation.">
+    <link rel="canonical" href="https://steel-predictor-project.github.io/Steel-predictor/technical-deep-dive.html">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="How We Built the Steel Property Predictor: A Technical Deep Dive">
+    <meta property="og:description" content="Small-data ML for materials science: predicting knife steel properties from alloy composition with an XGBoost + RF + Ridge ensemble and physics-informed features.">
+    <meta property="og:url" content="https://steel-predictor-project.github.io/Steel-predictor/technical-deep-dive.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="stylesheet" href="article.css">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "How We Built the Steel Property Predictor: A Technical Deep Dive",
+      "description": "A technical deep dive into an XGBoost + RandomForest + Ridge ensemble that predicts knife steel properties from composition with only 48 training samples.",
+      "author": { "@type": "Organization", "name": "Steel Property Predictor Project" },
+      "keywords": "machine learning, materials science, XGBoost, knife steel, small-data ML, feature engineering"
+    }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <nav class="breadcrumb"><a href="index.html">← Steel Property Predictor</a></nav>
+
+        <header class="article-header">
+            <h1>How We Built the Steel Property Predictor: A Technical Deep Dive</h1>
+            <p class="deck">Predicting four mechanical properties of martensitic tool and cutlery steels from chemical composition — with only 48 labeled training samples. Here is how the model works, and why it is mostly feature engineering.</p>
+            <p class="article-meta">Technical write-up · Machine learning + metallurgy</p>
+        </header>
+
+        <article>
+            <p>Knife steel is a small-data problem with a lot of domain structure. There are only a few dozen steels with standardized, published mechanical measurements, but there are more than a century of metallurgy telling you <em>why</em> composition drives performance. That combination — few labels, strong priors — dictates almost every modeling decision in this project.</p>
+
+            <p>This post walks through the whole pipeline: how raw composition becomes features, why edge retention is machine-learned while corrosion is computed from first principles, and how we validate a model trained on 48 examples without fooling ourselves.</p>
+
+            <h2>The prediction target</h2>
+            <p>For each steel we predict four base properties on a 1–10 scale:</p>
+            <ul>
+                <li><strong>Edge retention</strong> — how long the edge keeps cutting</li>
+                <li><strong>Toughness</strong> — resistance to chipping and fracture</li>
+                <li><strong>Corrosion resistance</strong> — resistance to rust and pitting</li>
+                <li><strong>Ease of sharpening</strong> — how readily the edge is reground on normal stones</li>
+            </ul>
+            <p>Those four are then combined into use-case scores (EDC, hard use, kitchen, bushcraft) using fixed weighting profiles. The interesting engineering is entirely in the four base properties, so that is where this post lives.</p>
+
+            <h2>Why one model per property, not one model for all four</h2>
+            <p>The four properties do not share a data regime, so they do not share a modeling approach:</p>
+
+            <table>
+                <thead>
+                    <tr><th>Property</th><th>Approach</th><th>Labels</th><th>Why</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Edge retention</td><td>ML ensemble</td><td>48 CATRA tests</td><td>Enough data for trees; non-linear element interactions</td></tr>
+                    <tr><td>Toughness</td><td>Physics-informed Ridge</td><td>12 Charpy tests</td><td>Too few samples for pure ML; physics features carry the load</td></tr>
+                    <tr><td>Corrosion</td><td>Deterministic calculation</td><td>None (validated vs 61 ratings)</td><td>Well-understood passivation chemistry</td></tr>
+                    <tr><td>Ease of sharpening</td><td>Deterministic calculation</td><td>None</td><td>Direct function of carbide volume and hardness</td></tr>
+                </tbody>
+            </table>
+
+            <p>This is the central design idea: <strong>use ML only where you have labels and non-linearity, and use physics everywhere else.</strong> Forcing a single multi-output model would mean inventing pseudo-labels for corrosion and sharpening, or starving them of the composition chemistry that actually governs them.</p>
+
+            <h2>Feature engineering: where the domain knowledge lives</h2>
+            <p>Raw composition — the weight percent of C, Cr, V, Mo, W, Co, N, Mn, Si, Nb, Ni plus a powder-metallurgy flag — is only 12 numbers. Trees can learn from those directly, but with 48 samples they will happily overfit. So we add 12 derived features that encode metallurgy the model would otherwise have to rediscover from almost no data:</p>
+
+            <pre><code>Composition (11):  C, Cr, V, Mo, W, Co, N, Mn, Si, Nb, Ni
+Process (1):       powder_metallurgy (binary)
+Derived (12):      total_carbide_formers, cr_to_c_ratio, is_stainless,
+                   total_alloy_content, pren, cvf, c_above_eutectoid,
+                   vc_fraction, matrix_cr, ms_temp, pm_x_cvf, pm_x_excess_c</code></pre>
+
+            <p>The two that matter most for edge retention:</p>
+            <ul>
+                <li><strong>CVF (carbide volume fraction)</strong> — an estimate of how much hard carbide is dispersed in the matrix. Carbides are what resist abrasion, so CVF is the first-order driver of wear resistance.</li>
+                <li><strong>vc_fraction</strong> — the volume fraction of <em>vanadium</em> carbide specifically. VC is the hardest common carbide (~2800 HV), so a steel rich in VC holds an edge far longer than one whose carbides are softer chromium carbides.</li>
+            </ul>
+
+            <p>Crucially, <code>vc_fraction</code> is not something a tree can derive from raw V% alone — it depends on how much carbon is available to bind with vanadium after the other carbide formers take their share. Computing it up front is doing the model's hardest reasoning for it.</p>
+
+            <p>We also add interaction terms like <code>pm_x_cvf</code> (powder metallurgy × CVF). Powder metallurgy produces finer, more evenly distributed carbides, so a high-CVF PM steel behaves very differently from a high-CVF conventionally-cast steel. Encoding that interaction explicitly means the model does not need extra samples to learn it.</p>
+
+            <h2>The edge-retention model</h2>
+            <h3>Data: CATRA TCC</h3>
+            <p>The edge-retention model is trained on 48 steels measured on a <strong>CATRA TCC (Total Card Cut)</strong> machine — a standardized rig that reports how many millimeters of silica-impregnated cardstock a blade slices before dulling, under fixed edge angle, finish, and load. This is an objective machine measurement, not a subjective rating, which is exactly what you want as a training label. Measured values span 271 mm (simple carbon steels) to 1009 mm (Rex 121, a high-V/W tool steel).</p>
+
+            <h3>Architecture: a three-model ensemble</h3>
+            <p>Rather than bet everything on one estimator, we blend three with fixed weights:</p>
+            <pre><code>prediction = 0.45 x XGBoost + 0.30 x RandomForest + 0.25 x Ridge</code></pre>
+            <p>The intuition: XGBoost captures sharp non-linear interactions, RandomForest is a lower-variance bagged counterweight, and Ridge anchors the blend with a smooth linear trend that degrades gracefully when a steel sits outside the training distribution. On a 48-row dataset, that linear anchor matters — it stops the trees from extrapolating wildly on an unusual composition.</p>
+            <p>Every hyperparameter is chosen to fight overfitting on a tiny dataset: shallow trees (<code>max_depth=3</code>), strong regularization (<code>reg_alpha=0.5</code>, <code>reg_lambda=2.0</code>), subsampling, and a low learning rate over 200 estimators.</p>
+
+            <h3>Validation: leave-one-out</h3>
+            <p>With 48 samples, a held-out test set would be both too small to trust and too costly to give up. So we use leave-one-out cross-validation: train on 47 steels, predict the one left out, repeat 48 times.</p>
+            <table>
+                <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+                <tbody>
+                    <tr><td>LOOCV MAE (mm)</td><td class="highlight">34.8 mm</td></tr>
+                    <tr><td>LOOCV MAE (1–10 scale)</td><td class="highlight">0.391</td></tr>
+                    <tr><td>LOOCV RMSE (mm)</td><td>~45 mm</td></tr>
+                </tbody>
+            </table>
+            <p>An average error of 0.39 on a 10-point scale means the ranking is trustworthy even if an individual steel is occasionally off by half a point.</p>
+
+            <h3>What the model learned</h3>
+            <p>The XGBoost feature importances line up cleanly with metallurgy:</p>
+            <table>
+                <thead><tr><th>Feature</th><th>Importance</th></tr></thead>
+                <tbody>
+                    <tr><td>vc_fraction</td><td class="highlight">0.406</td></tr>
+                    <tr><td>cvf</td><td>0.265</td></tr>
+                    <tr><td>V</td><td>0.112</td></tr>
+                    <tr><td>C</td><td>0.097</td></tr>
+                    <tr><td>total_carbide_formers</td><td>0.028</td></tr>
+                    <tr><td>total_alloy_content</td><td>0.023</td></tr>
+                </tbody>
+            </table>
+            <p>Vanadium carbide fraction alone explains ~40% of the model's edge-retention decisions. That is not a coincidence we engineered in — it is the model independently confirming the materials-science consensus that VC content drives wear resistance. When a model's learned structure matches known physics, you gain confidence it is generalizing rather than memorizing.</p>
+
+            <h2>Toughness: physics features, tiny regression</h2>
+            <p>Only 12 steels in the set have published Charpy impact data, all powder-metallurgy steels. Twelve samples is far too few for tree ensembles, so toughness uses Ridge regression over <em>physics-derived</em> features rather than raw composition. The key features encode carbide <strong>type</strong>, not just amount:</p>
+            <ul>
+                <li><strong>vc_vol</strong> — round, coherent vanadium carbides: a mild toughness penalty</li>
+                <li><strong>crc_vol</strong> — angular Cr<sub>7</sub>C<sub>3</sub> chromium carbides: severe crack-initiation sites</li>
+                <li><strong>pm_tool</strong> — powder metallurgy × tool-steel interaction: a large positive term</li>
+                <li><strong>stainless_x_cvf</strong> — the worst combination, high carbide volume in a stainless matrix</li>
+            </ul>
+            <p>The fitted coefficients are readable, which is the point of using a linear model here:</p>
+            <table>
+                <thead><tr><th>Feature</th><th>Coefficient</th><th>Reading</th></tr></thead>
+                <tbody>
+                    <tr><td>stainless_x_cvf</td><td>-0.85</td><td>stainless + high carbide = worst for toughness</td></tr>
+                    <tr><td>vc_vol</td><td>-0.84</td><td>VC hurts, but less than raw volume would suggest</td></tr>
+                    <tr><td>pm_tool</td><td>+0.58</td><td>PM processing greatly helps tool steels</td></tr>
+                    <tr><td>crc_vol</td><td>-0.30</td><td>chromium carbides hurt toughness</td></tr>
+                    <tr><td>intercept</td><td>6.11</td><td>baseline score</td></tr>
+                </tbody>
+            </table>
+            <p>Calibration correlation against Charpy is 0.96 (n=12). Because all calibration steels are PM, conventional steels receive an explicit processing penalty (−1.0 to −2.0 points depending on type) rather than a fabricated ML estimate. We would rather apply an honest, documented heuristic than pretend we measured something we did not.</p>
+
+            <h2>Corrosion and sharpening: no ML at all</h2>
+            <p>Corrosion resistance is computed, not learned, from <strong>effective matrix chromium</strong> — the Cr actually dissolved in the matrix and available to passivate, after subtracting the Cr locked up in carbides. The subtlety is carbide partition order: carbon binds vanadium, then niobium, then tungsten, then molybdenum, and only the leftover carbon consumes chromium. For a high-vanadium steel like S90V, vanadium scavenges most of the carbon, so far less chromium is depleted than a naive "carbon eats chromium" estimate would predict — which is why S90V is still stainless despite 2.3% carbon. This deterministic model correlates 0.888 with an independent set of 61 reference ratings.</p>
+            <p>Ease of sharpening is likewise a closed-form penalty driven by carbide volume and the hardness of those carbides relative to a typical alumina stone (2100 HV). A steel whose carbides are harder than the stone (high VC) is inherently hard to sharpen; the formula just encodes that.</p>
+
+            <h2>Lessons for small-data ML</h2>
+            <p>If you take one thing from this project, take this: on a 48-sample problem, <strong>the model is mostly your features and your priors, not your estimator.</strong> Concretely:</p>
+            <ul>
+                <li><strong>Spend your samples where they buy the most.</strong> ML for the property with the richest labels and strongest non-linearity; physics for the rest.</li>
+                <li><strong>Encode interactions you already understand.</strong> Every domain interaction you compute up front is one you do not need extra data to learn.</li>
+                <li><strong>Keep a linear anchor in the ensemble.</strong> It is what keeps predictions sane outside the training distribution.</li>
+                <li><strong>Validate honestly.</strong> LOOCV, not a vanity hold-out; and check that learned importances match known physics.</li>
+                <li><strong>Prefer a documented heuristic over a fabricated label.</strong> The conventional-steel toughness penalty is transparent; a made-up Charpy value would not be.</li>
+            </ul>
+
+            <div class="cta-box">
+                <p>Curious what the model predicts for a specific steel or a hypothetical composition?</p>
+                <a class="cta" href="https://new.knife.day/steel-predictor">Try the interactive predictor →</a>
+            </div>
+
+            <div class="article-footer">
+                <p>The full model, data compilation, and one-command training pipeline are open source: <a href="https://github.com/Steel-predictor-project/Steel-predictor">github.com/Steel-predictor-project/Steel-predictor</a>. Read the complete <a href="https://github.com/Steel-predictor-project/Steel-predictor/blob/main/docs/methodology.md">methodology documentation</a>.</p>
+                <div class="related">
+                    <strong>Related write-ups</strong>
+                    <ul>
+                        <li><a href="what-makes-a-steel-tough.html">What Makes a Steel "Tough"? A Data-Driven Answer</a></li>
+                        <li><a href="how-carbon-content-affects-performance.html">How Carbon Content Actually Affects Knife Performance</a></li>
+                        <li><a href="pm-vs-conventional-steel.html">Powder Metallurgy vs Conventional Steel: What the Numbers Say</a></li>
+                    </ul>
+                </div>
+            </div>
+        </article>
+    </div>
+</body>
+</html>

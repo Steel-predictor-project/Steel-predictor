@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Carbon Content Actually Affects Knife Performance (It's Not What You Think)</title>
+    <meta name="description" content="More carbon does not mean better edge retention. Using model feature importances, here is what carbon really does in a knife steel — and why it depends entirely on what else is in the alloy.">
+    <link rel="canonical" href="https://steel-predictor-project.github.io/Steel-predictor/how-carbon-content-affects-performance.html">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="How Carbon Content Actually Affects Knife Performance">
+    <meta property="og:description" content="More carbon does not mean better edge retention. What carbon really does in a knife steel, from the data.">
+    <meta property="og:url" content="https://steel-predictor-project.github.io/Steel-predictor/how-carbon-content-affects-performance.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="stylesheet" href="article.css">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "How Carbon Content Actually Affects Knife Performance (It's Not What You Think)",
+      "description": "What carbon really does in a knife steel, explained through model feature importances and carbide chemistry.",
+      "author": { "@type": "Organization", "name": "Steel Property Predictor Project" },
+      "keywords": "carbon steel, knife steel, edge retention, carbides, vanadium, metallurgy"
+    }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <nav class="breadcrumb"><a href="index.html">← Steel Property Predictor</a></nav>
+
+        <header class="article-header">
+            <h1>How Carbon Content Actually Affects Knife Performance</h1>
+            <p class="deck">"High carbon steel" is marketing shorthand for "good knife." The data tells a more specific — and more useful — story: carbon only helps if the right elements are there to turn it into hard carbides. Otherwise it is nearly wasted.</p>
+            <p class="article-meta">Metallurgy explainer · Feature-importance analysis</p>
+        </header>
+
+        <article>
+            <p>Ask which single element makes a knife steel good and most people say carbon. It is not wrong, exactly — you cannot harden steel without it — but it badly overstates the case. When we look at what actually drives the model's edge-retention predictions, raw carbon is a minor player. What matters is <strong>what the carbon becomes.</strong></p>
+
+            <h2>The feature importances tell on carbon</h2>
+            <p>Here is how much each feature drives the edge-retention model:</p>
+            <table>
+                <thead><tr><th>Feature</th><th>Importance</th></tr></thead>
+                <tbody>
+                    <tr><td>vc_fraction (vanadium carbide volume)</td><td class="highlight">0.406</td></tr>
+                    <tr><td>cvf (total carbide volume)</td><td class="highlight">0.265</td></tr>
+                    <tr><td>V (vanadium %)</td><td>0.112</td></tr>
+                    <tr><td>C (carbon %)</td><td>0.097</td></tr>
+                    <tr><td>total_carbide_formers</td><td>0.028</td></tr>
+                    <tr><td>total_alloy_content</td><td>0.023</td></tr>
+                </tbody>
+            </table>
+            <p>Raw carbon is fourth, below two <em>carbide</em> features and vanadium. The top two features are about how much hard carbide the carbon has formed — not the carbon itself. That ordering is the whole point of this article.</p>
+
+            <h2>Carbon has two very different jobs</h2>
+            <p>When you add carbon to steel, it splits between two roles:</p>
+            <ul>
+                <li><strong>Dissolved in the matrix</strong> — this is what lets the steel harden (higher achievable HRC) and gives a fine, keen edge. But past a point, extra dissolved carbon does little for <em>wear</em> resistance.</li>
+                <li><strong>Bound into carbides</strong> — carbon that combines with carbide-forming elements (V, Cr, W, Mo, Nb) into hard particles. <em>This</em> is what resists abrasion and holds an edge over hundreds of cuts.</li>
+            </ul>
+            <p>The performance difference between two steels with identical carbon often comes down entirely to which job that carbon did — and that is decided by what else is in the alloy.</p>
+
+            <h2>The proof: high carbon, low edge retention</h2>
+            <p>Simple carbon steels have plenty of carbon but almost no carbide formers, so the carbon mostly ends up as iron carbide (cementite) — which is comparatively soft and does little for wear. The model scores them near the bottom for edge retention despite ~1% carbon:</p>
+            <table>
+                <thead><tr><th>Steel</th><th>Carbon</th><th>Edge retention</th></tr></thead>
+                <tbody>
+                    <tr><td>1095</td><td>~0.95%</td><td class="highlight">1.6</td></tr>
+                    <tr><td>52100</td><td>~1.0%</td><td>1.8</td></tr>
+                    <tr><td>White #1</td><td>~1.3%</td><td>2.0</td></tr>
+                    <tr><td>O1</td><td>~0.95%</td><td>1.6</td></tr>
+                </tbody>
+            </table>
+            <p>Now compare a steel that pairs carbon with a lot of vanadium, so the carbon becomes hard vanadium carbide:</p>
+            <table>
+                <thead><tr><th>Steel</th><th>Carbon</th><th>Edge retention</th></tr></thead>
+                <tbody>
+                    <tr><td>CPM S90V</td><td>~2.3%</td><td class="highlight">6.6</td></tr>
+                    <tr><td>CPM 15V</td><td>~3.4%</td><td>7.9</td></tr>
+                    <tr><td>Maxamet</td><td>~2.15%</td><td>8.7</td></tr>
+                    <tr><td>CPM Rex 121</td><td>~3.4%</td><td>8.9</td></tr>
+                </tbody>
+            </table>
+            <p>Roughly double the carbon, but a 3–5× jump in edge retention — because in these steels the carbon has vanadium and tungsten to bond with, forming carbides that are harder than the abrasive doing the wearing.</p>
+
+            <h2>Carbon is a resource that gets spent — in a fixed order</h2>
+            <p>The reason carbon behaves so differently across alloys is that the carbide-forming elements claim it in a strict priority order before chromium ever gets a turn:</p>
+            <pre><code>1. Vanadium binds C first   (1% V  -> 0.236% C, forms VC)
+2. Niobium next             (1% Nb -> 0.129% C, forms NbC)
+3. Tungsten next            (1% W  -> 0.065% C, forms M6C)
+4. Molybdenum next          (1% Mo -> 0.063% C, forms Mo2C)
+5. Whatever C is left binds chromium (forms Cr7C3)</code></pre>
+            <p>This single mechanism explains two things at once:</p>
+            <ul>
+                <li><strong>Edge retention:</strong> carbon paired with vanadium becomes ultra-hard VC (the model's #1 feature). Carbon with nothing better to bond to becomes soft cementite.</li>
+                <li><strong>Corrosion:</strong> a steel can carry very high carbon and still be stainless, as long as vanadium scavenges the carbon before it can pull chromium out of the matrix. CPM S90V has 2.3% carbon and 14% chromium, yet stays stainless because vanadium eats almost all the carbon first — leaving ~13.3% chromium dissolved in the matrix to passivate.</li>
+            </ul>
+
+            <h2>What this means when you read a spec sheet</h2>
+            <ul>
+                <li><strong>Do not judge a steel by its carbon number.</strong> 1.3% carbon in a simple steel and 1.3% carbon in a high-vanadium steel are barely the same material.</li>
+                <li><strong>Look at the carbide formers.</strong> Vanadium especially — it is the difference between carbon that resists wear and carbon that does not.</li>
+                <li><strong>High carbon is not automatically "less stainless."</strong> Check whether vanadium/niobium are present to protect the chromium.</li>
+                <li><strong>Simple carbon steels earn their place a different way</strong> — ease of sharpening and toughness, not wear resistance. 1095 and White #2 sharpen to a screaming edge on a basic stone precisely because they lack hard carbides.</li>
+            </ul>
+
+            <div class="cta-box">
+                <p>Want to see how carbon and vanadium trade off for a specific composition?</p>
+                <a class="cta" href="https://new.knife.day/steel-predictor">Try the interactive predictor →</a>
+            </div>
+
+            <div class="article-footer">
+                <p>Feature importances and predictions are from an open-source model trained on CATRA cutting-test data. Full method: <a href="https://github.com/Steel-predictor-project/Steel-predictor/blob/main/docs/methodology.md">methodology docs</a> · <a href="https://github.com/Steel-predictor-project/Steel-predictor">source on GitHub</a>.</p>
+                <div class="related">
+                    <strong>Related write-ups</strong>
+                    <ul>
+                        <li><a href="what-makes-a-steel-tough.html">What Makes a Steel "Tough"? A Data-Driven Answer</a></li>
+                        <li><a href="pm-vs-conventional-steel.html">Powder Metallurgy vs Conventional Steel: What the Numbers Say</a></li>
+                        <li><a href="technical-deep-dive.html">How We Built the Steel Property Predictor</a></li>
+                    </ul>
+                </div>
+            </div>
+        </article>
+    </div>
+</body>
+</html>
