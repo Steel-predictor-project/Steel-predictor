@@ -27,11 +27,20 @@ Most steel comparisons rely on one person's subjective opinions. This project is
 The models predict base material properties on a 1–10 scale, then combine them with weighting profiles that reflect how different applications trade off those properties:
 
 ```
-EDC:       35% corrosion + 30% edge retention + 20% toughness + 15% sharpening
-Hard Use:  50% toughness + 20% edge retention + 20% sharpening + 10% corrosion
-Kitchen:   35% corrosion + 30% edge retention + 25% sharpening + 10% toughness
-Bushcraft: 45% toughness + 25% corrosion + 15% edge retention + 15% sharpening
+EDC:       40% edge retention + 30% corrosion + 25% toughness +  5% sharpening
+Hard Use:  60% toughness + 25% edge retention + 10% corrosion +  5% sharpening
+Kitchen:   35% corrosion + 35% edge retention + 20% sharpening + 10% toughness
+Bushcraft: 50% toughness + 20% edge retention + 20% sharpening + 10% corrosion
 ```
+
+The combination is a weighted **geometric** mean, so a steel that is unusable in
+one dimension cannot average its way to a good score, and the result is rescaled
+onto 1–10 against the 111 knife steels in the dataset — 10 is the best knife
+steel here for that use. The remaining 23 grades are hot-work, plastic-mould,
+holder and machinery steels that nobody builds knives from; they still get
+property predictions but are excluded from the use-case scale. See
+[`data/steel_applications.csv`](data/steel_applications.csv) and
+[`docs/methodology.md`](docs/methodology.md#5-use-case-scoring).
 
 ## Architecture
 
@@ -87,11 +96,11 @@ Bushcraft: 45% toughness + 25% corrosion + 15% edge retention + 15% sharpening
 
 | Steel | Tough | Edge | Corr | Sharp | EDC | Hard Use | Kitchen | Bushcraft |
 |-------|-------|------|------|-------|-----|----------|---------|-----------|
-| CPM MagnaCut | 6.6 | 4.2 | 6.3 | 1.9 | 5.1 | 5.1 | 4.6 | 5.5 |
-| Vanax | 5.1 | 4.1 | 10.0 | 8.0 | 7.0 | 6.0 | 7.2 | 6.6 |
-| CPM 3V | 8.0 | 3.4 | 2.9 | 5.5 | 4.5 | 6.1 | 4.2 | 5.7 |
-| CPM S35VN | 4.5 | 4.1 | 6.9 | 2.9 | 5.0 | 4.3 | 4.8 | 4.8 |
-| M390 | 3.1 | 5.3 | 8.9 | 1.8 | 5.6 | 3.9 | 5.4 | 4.7 |
+| CPM MagnaCut | 6.6 | 4.2 | 6.3 | 1.9 | 8.4 | 9.6 | 6.1 | 7.9 |
+| Vanax | 5.1 | 4.1 | 10.0 | 8.0 | 10.0 | 9.1 | 10.0 | 10.0 |
+| CPM 3V | 8.0 | 3.4 | 2.9 | 5.5 | 6.4 | 10.0 | 5.3 | 9.9 |
+| CPM S35VN | 4.5 | 4.1 | 6.9 | 2.9 | 7.8 | 7.5 | 6.6 | 6.9 |
+| M390 | 3.1 | 5.3 | 8.9 | 1.8 | 8.5 | 6.2 | 7.0 | 5.3 |
 
 *Full results for all 134 steels in [`data/processed/all_predictions.csv`](data/processed/all_predictions.csv)*
 

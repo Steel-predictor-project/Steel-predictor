@@ -5,7 +5,7 @@
     "toughness": "Physics-based model (CVF, PM, eutectoid boundary, matrix composition) calibrated against Charpy ft-lbs",
     "corrosion_resistance": "Physics calculation from matrix Cr, PREN, and nitrogen content",
     "ease_of_sharpening": "Physics-based inverse wear resistance (CVF, VC hardness, WC content)",
-    "use_case_scores": "Weighted combination of base properties with domain-specific weights"
+    "use_case_scores": "Weighted geometric mean (desirability function) of the base properties, rescaled onto 1-10 against the knife-steel population so 10 is the best knife steel in the dataset for that use"
   },
   "features": [
     "C",
@@ -26720,29 +26720,52 @@
   },
   "use_case_weights": {
     "edc": {
-      "edge_retention": 0.3,
-      "corrosion_resistance": 0.35,
-      "toughness": 0.2,
-      "ease_of_sharpening": 0.15
+      "edge_retention": 0.4,
+      "corrosion_resistance": 0.3,
+      "toughness": 0.25,
+      "ease_of_sharpening": 0.05
     },
     "hard_use": {
-      "toughness": 0.5,
-      "edge_retention": 0.2,
+      "toughness": 0.6,
+      "edge_retention": 0.25,
       "corrosion_resistance": 0.1,
-      "ease_of_sharpening": 0.2
+      "ease_of_sharpening": 0.05
     },
     "kitchen": {
       "corrosion_resistance": 0.35,
-      "edge_retention": 0.3,
-      "ease_of_sharpening": 0.25,
+      "edge_retention": 0.35,
+      "ease_of_sharpening": 0.2,
       "toughness": 0.1
     },
     "bushcraft": {
-      "toughness": 0.45,
-      "corrosion_resistance": 0.25,
-      "edge_retention": 0.15,
-      "ease_of_sharpening": 0.15
+      "toughness": 0.5,
+      "edge_retention": 0.2,
+      "ease_of_sharpening": 0.2,
+      "corrosion_resistance": 0.1
     }
+  },
+  "use_case_scoring": {
+    "method": "weighted_geometric_mean",
+    "property_floor": 0.5,
+    "anchors": {
+      "edc": {
+        "min": 1.548319841640251,
+        "max": 5.850063579052917
+      },
+      "hard_use": {
+        "min": 1.2913126763795861,
+        "max": 5.727718370135187
+      },
+      "kitchen": {
+        "min": 1.4409132468487345,
+        "max": 6.5440915273475575
+      },
+      "bushcraft": {
+        "min": 1.3532956058374723,
+        "max": 5.714258155403263
+      }
+    },
+    "anchor_population": "knife_steel == 1 in data/steel_applications.csv"
   },
   "feature_importance": {
     "edge_retention": {

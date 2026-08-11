@@ -254,16 +254,56 @@ Each use case applies different importance to the four base properties:
 
 | Use Case | Edge Ret. | Corrosion | Toughness | Sharpening | Rationale |
 |----------|-----------|-----------|-----------|------------|-----------|
-| **EDC** | 0.30 | 0.35 | 0.20 | 0.15 | Pocket carry = sweat/humidity exposure; moderate cutting tasks |
-| **Hard Use** | 0.20 | 0.10 | 0.50 | 0.20 | Batoning, prying, chopping — edge must not chip |
-| **Kitchen** | 0.30 | 0.35 | 0.10 | 0.25 | Acidic foods, frequent washing; regular maintenance expected |
-| **Bushcraft** | 0.15 | 0.25 | 0.45 | 0.15 | Outdoor exposure + impact tasks; field sharpening less critical |
+| **EDC** | 0.40 | 0.30 | 0.25 | 0.05 | Pocket carry = sweat/humidity exposure; you sharpen rarely, so edge retention leads |
+| **Hard Use** | 0.25 | 0.10 | 0.60 | 0.05 | Batoning, prying, chopping — edge must not chip |
+| **Kitchen** | 0.35 | 0.35 | 0.10 | 0.20 | Acidic foods, frequent washing; regular maintenance expected |
+| **Bushcraft** | 0.20 | 0.10 | 0.50 | 0.20 | Impact tasks plus field sharpening on whatever stone you brought |
 
 ### Score Calculation
 
+The four properties are combined with a **weighted geometric mean** — a
+[Derringer–Suich desirability function](https://doi.org/10.1080/00224065.1980.11980968),
+the standard way to fold several material properties into one selection index:
+
 ```
-use_case_score = Σ (weight_i × property_i)  # clamped to [0.5, 10.0]
+desirability = Π max(property_i, 0.5) ^ weight_i
+use_case_score = 1 + 9 × (desirability − min) / (max − min)   # clamped to [1, 10]
 ```
+
+Two deliberate choices here, both fixing defects in the earlier linear version:
+
+**Geometric, not arithmetic.** A weighted average lets excellence in one
+property paper over a weakness in another, which is not how a knife fails — a
+blade that chips is not saved by holding an edge. Together with the reweighting
+it is why the old EDC ranking put 440A 5th and CPM MagnaCut 29th: 440A's easy
+sharpening and corrosion resistance averaged away its poor edge retention.
+MagnaCut is now 6th and 440A 18th.
+
+**Rescaled against knife steels only.** The raw desirability of a real knife
+steel spans a narrow band, so scores previously never left roughly 2.4–7.0 — no
+steel in the dataset scored above 6.4 for hard use — and nothing could be told
+apart. `min` and `max` are fitted over the 111 grades
+flagged `knife_steel = 1` in [`data/steel_applications.csv`](../data/steel_applications.csv)
+and exported in `models/model_weights.json` under `use_case_scoring.anchors`, so
+browser-side inference reproduces the same numbers. A score of 10 means "best
+knife steel in this dataset for this use", not an absolute.
+
+The other 23 grades — hot-work die steels (Orvar, Vidar, QRO 90), plastic-mould
+steels (Corrax, Mirrax, Tyrax, Nimax, Idun, Impax, Formvar), pre-hardened holder
+steels (Ramax HH, Royalloy, Holdax) and machinery steels (Bure, Formax, Skolvar,
+Viking, UHB 11, Carmo) — still receive property predictions, but are excluded
+from the scale. Including them is what previously ranked Uddeholm mould steels
+among the top "EDC steels".
+
+### Interpretation and limits
+
+The weights are an **editorial judgement about what each use demands**, not a
+fitted quantity — there is no labelled dataset of "correct" EDC scores to fit
+against. Reasonable people weight these differently; the base property
+predictions are the validated output, and the use-case scores are a convenience
+layer on top. Note also that `ease_of_sharpening` is close to the inverse of
+`edge_retention` (both track carbide volume), so weighting the two heavily
+against each other cancels the signal rather than adding information.
 
 ---
 

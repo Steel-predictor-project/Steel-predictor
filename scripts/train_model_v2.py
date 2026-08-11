@@ -87,32 +87,55 @@ CHARPY_MIN = 3.0    # maps to ~1.0
 CHARPY_MAX = 130.0  # maps to ~10.0
 
 # Use-case scoring weights (must sum to 1.0 per use case)
+#
+# Two notes on why these are what they are:
+#
+# 1. `ease_of_sharpening` is close to the inverse of `edge_retention` (both are
+#    driven by carbide volume), so weighting the two heavily against each other
+#    cancels out the only dimension that separates steels. Earlier weightings
+#    did exactly that and collapsed every steel into a 2.4-7.0 band.
+# 2. Weights express what a use case *demands*, not what any particular steel
+#    happens to be good at.
 USE_CASE_WEIGHTS = {
     "edc": {
-        "edge_retention": 0.30,
-        "corrosion_resistance": 0.35,
-        "toughness": 0.20,
-        "ease_of_sharpening": 0.15,
+        "edge_retention": 0.40,
+        "corrosion_resistance": 0.30,
+        "toughness": 0.25,
+        "ease_of_sharpening": 0.05,
     },
     "hard_use": {
-        "toughness": 0.50,
-        "edge_retention": 0.20,
+        "toughness": 0.60,
+        "edge_retention": 0.25,
         "corrosion_resistance": 0.10,
-        "ease_of_sharpening": 0.20,
+        "ease_of_sharpening": 0.05,
     },
     "kitchen": {
         "corrosion_resistance": 0.35,
-        "edge_retention": 0.30,
-        "ease_of_sharpening": 0.25,
+        "edge_retention": 0.35,
+        "ease_of_sharpening": 0.20,
         "toughness": 0.10,
     },
     "bushcraft": {
-        "toughness": 0.45,
-        "corrosion_resistance": 0.25,
-        "edge_retention": 0.15,
-        "ease_of_sharpening": 0.15,
+        "toughness": 0.50,
+        "edge_retention": 0.20,
+        "ease_of_sharpening": 0.20,
+        "corrosion_resistance": 0.10,
     },
 }
+
+# A weighted *geometric* mean (a Derringer-Suich desirability function) is used
+# instead of a weighted average, so that being unusable in one dimension cannot
+# be averaged away by being excellent in another. Properties are floored before
+# the log so a 0.0 does not annihilate the product.
+DESIRABILITY_FLOOR = 0.5
+
+# Use-case scores are rescaled onto 1-10 against the knife-steel population, so
+# 10 is the best knife steel in the dataset for that use rather than an
+# unreachable theoretical maximum. The dataset also contains hot-work, plastic-
+# mould, holder and machinery grades that nobody builds knives from; including
+# them in the reference population is what previously put Uddeholm mould steels
+# at the top of the "best EDC steel" list.
+APPLICATIONS_CSV = "steel_applications.csv"
 
 
 def load_data():
@@ -562,21 +585,54 @@ def validate_corrosion_model(df):
 # USE-CASE SCORING
 # ═══════════════════════════════════════════════════════════════════
 
-def compute_use_case_scores(toughness, edge_retention, corrosion, ease_of_sharpening):
-    """Compute use-case scores from base property scores."""
+def compute_desirabilities(toughness, edge_retention, corrosion, ease_of_sharpening):
+    """Weighted geometric mean of the four properties, one value per use case.
+
+    This is the raw, unscaled desirability. It is turned into a 1-10 score by
+    scale_use_case_score() using anchors fitted to the knife-steel population.
+
+    Properties are rounded to 1 dp first, i.e. to the values published in
+    all_predictions.csv, so anyone (including the browser-side port) can
+    reproduce a use-case score from the published property scores alone.
+    """
     properties = {
-        "toughness": toughness,
-        "edge_retention": edge_retention,
-        "corrosion_resistance": corrosion,
-        "ease_of_sharpening": ease_of_sharpening,
+        "toughness": round(toughness, 1),
+        "edge_retention": round(edge_retention, 1),
+        "corrosion_resistance": round(corrosion, 1),
+        "ease_of_sharpening": round(ease_of_sharpening, 1),
+    }
+    return {
+        use_case: float(np.exp(sum(
+            w * np.log(max(properties[prop], DESIRABILITY_FLOOR))
+            for prop, w in weights.items()
+        )))
+        for use_case, weights in USE_CASE_WEIGHTS.items()
     }
 
-    scores = {}
-    for use_case, weights in USE_CASE_WEIGHTS.items():
-        score = sum(weights[prop] * properties[prop] for prop in weights)
-        scores[use_case] = round(np.clip(score, 0.5, 10.0), 1)
 
-    return scores
+def fit_use_case_anchors(desirabilities, is_knife_steel):
+    """Min/max desirability per use case over knife steels only."""
+    anchors = {}
+    for use_case in USE_CASE_WEIGHTS:
+        values = [d[use_case] for d, keep in zip(desirabilities, is_knife_steel) if keep]
+        anchors[use_case] = {"min": min(values), "max": max(values)}
+    return anchors
+
+
+def scale_use_case_score(desirability, anchor):
+    """Map a raw desirability onto 1-10 using the knife-steel anchors."""
+    lo, hi = anchor["min"], anchor["max"]
+    score = 1.0 + 9.0 * (desirability - lo) / (hi - lo)
+    return round(float(np.clip(score, 1.0, 10.0)), 1)
+
+
+def load_applications():
+    """Curated application class per steel; drives the knife-steel filter."""
+    apps = pd.read_csv(REPO_ROOT / "data" / APPLICATIONS_CSV)
+    return {
+        row["steel_name"]: (int(row["knife_steel"]), row["application_class"])
+        for _, row in apps.iterrows()
+    }
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -586,7 +642,9 @@ def compute_use_case_scores(toughness, edge_retention, corrosion, ease_of_sharpe
 def generate_all_predictions(df, er_model):
     """Generate predictions for all steels."""
     X = df[ALL_FEATURES].values
+    applications = load_applications()
     results = []
+    desirabilities = []
 
     # Edge retention (ML model)
     catra_pred, er_scores = predict_edge_retention(er_model, X)
@@ -607,26 +665,35 @@ def generate_all_predictions(df, er_model):
         # Ease of sharpening (physics)
         ease = compute_ease_of_sharpening(row)
 
-        # Use-case scores
-        use_cases = compute_use_case_scores(toughness, edge_retention, corrosion, ease)
+        # Use-case desirabilities (scaled to 1-10 in a second pass below, once
+        # the knife-steel anchors are known)
+        desirabilities.append(
+            compute_desirabilities(toughness, edge_retention, corrosion, ease)
+        )
 
+        knife_steel, application_class = applications[steel]
         results.append({
             "steel_name": steel,
+            "knife_steel": knife_steel,
+            "application_class": application_class,
             "toughness": round(toughness, 1),
             "edge_retention": round(edge_retention, 1),
             "corrosion_resistance": round(corrosion, 1),
             "ease_of_sharpening": round(ease, 1),
             "predicted_catra_mm": round(predicted_catra_mm, 0),
-            "edc_score": use_cases["edc"],
-            "hard_use_score": use_cases["hard_use"],
-            "kitchen_score": use_cases["kitchen"],
-            "bushcraft_score": use_cases["bushcraft"],
         })
 
-    return pd.DataFrame(results)
+    anchors = fit_use_case_anchors(desirabilities, [r["knife_steel"] for r in results])
+    for result, desirability in zip(results, desirabilities):
+        for use_case in USE_CASE_WEIGHTS:
+            result[f"{use_case}_score"] = scale_use_case_score(
+                desirability[use_case], anchors[use_case]
+            )
+
+    return pd.DataFrame(results), anchors
 
 
-def export_model(er_model, toughness_stats, corrosion_stats, predictions_df):
+def export_model(er_model, toughness_stats, corrosion_stats, predictions_df, use_case_anchors):
     """Export model weights and predictions."""
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -642,7 +709,12 @@ def export_model(er_model, toughness_stats, corrosion_stats, predictions_df):
             "toughness": "Physics-based model (CVF, PM, eutectoid boundary, matrix composition) calibrated against Charpy ft-lbs",
             "corrosion_resistance": "Physics calculation from matrix Cr, PREN, and nitrogen content",
             "ease_of_sharpening": "Physics-based inverse wear resistance (CVF, VC hardness, WC content)",
-            "use_case_scores": "Weighted combination of base properties with domain-specific weights",
+            "use_case_scores": (
+                "Weighted geometric mean (desirability function) of the base "
+                "properties, rescaled onto 1-10 against the knife-steel "
+                "population so 10 is the best knife steel in the dataset for "
+                "that use"
+            ),
         },
         "features": ALL_FEATURES,
         "edge_retention_model": {
@@ -681,6 +753,12 @@ def export_model(er_model, toughness_stats, corrosion_stats, predictions_df):
             },
         },
         "use_case_weights": USE_CASE_WEIGHTS,
+        "use_case_scoring": {
+            "method": "weighted_geometric_mean",
+            "property_floor": DESIRABILITY_FLOOR,
+            "anchors": use_case_anchors,
+            "anchor_population": "knife_steel == 1 in data/steel_applications.csv",
+        },
         "feature_importance": {},
     }
 
@@ -710,6 +788,7 @@ def export_model(er_model, toughness_stats, corrosion_stats, predictions_df):
         "toughness_calibration": toughness_stats,
         "corrosion_validation": corrosion_stats,
         "use_case_weights": USE_CASE_WEIGHTS,
+        "use_case_scoring": weights["use_case_scoring"],
         "feature_importance": weights["feature_importance"],
     }
     summary_path = MODELS_DIR / "model_summary.json"
@@ -731,7 +810,7 @@ def main():
     print("  Edge Retention: ML model trained on CATRA TCC machine measurements")
     print("  Toughness: Physics formula calibrated on Charpy impact data")
     print("  Corrosion: Physics calculation from matrix Cr / PREN")
-    print("  Use Cases: Weighted property combinations (EDC/Hard Use/Kitchen/Bushcraft)")
+    print("  Use Cases: Desirability scores over knife steels (EDC/Hard Use/Kitchen/Bushcraft)")
 
     # Load data
     df = load_data()
@@ -758,7 +837,7 @@ def main():
     print(f"\n{'='*70}")
     print("GENERATING PREDICTIONS FOR ALL STEELS")
     print(f"{'='*70}")
-    predictions_df = generate_all_predictions(df, er_model)
+    predictions_df, use_case_anchors = generate_all_predictions(df, er_model)
 
     # ─── Validate against KSN (reference only) ───
     print(f"\n{'='*70}")
@@ -804,7 +883,7 @@ def main():
     print(f"\n{'='*70}")
     print("EXPORTING MODEL")
     print(f"{'='*70}")
-    export_model(er_model, toughness_stats, corrosion_stats, predictions_df)
+    export_model(er_model, toughness_stats, corrosion_stats, predictions_df, use_case_anchors)
 
     # ─── Final summary ───
     print(f"\n{'='*70}")
@@ -814,7 +893,10 @@ def main():
     print(f"  Toughness: physics model, calibration r={toughness_stats['correlation']:.3f}")
     print(f"  Corrosion: physics model, validation r={corrosion_stats['correlation']:.3f}")
     print(f"  Total steels predicted: {len(predictions_df)}")
-    print(f"  Use-case scores: EDC, Hard Use, Kitchen, Bushcraft")
+    knife_count = int(predictions_df["knife_steel"].sum())
+    print(f"  Use-case scores: EDC, Hard Use, Kitchen, Bushcraft "
+          f"(scaled against {knife_count} knife steels; "
+          f"{len(predictions_df) - knife_count} non-knife grades excluded from the scale)")
     print(f"\n  Model v2 complete.")
 
     return 0
