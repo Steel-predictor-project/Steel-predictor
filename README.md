@@ -101,11 +101,11 @@ property predictions but are excluded from the use-case scale. See
 
 | Steel | Tough | Edge | Corr | Sharp | EDC | Hard Use | Kitchen | Bushcraft |
 |-------|-------|------|------|-------|-----|----------|---------|-----------|
-| CPM MagnaCut | 6.6 | 4.2 | 6.3 | 1.9 | 8.4 | 9.6 | 6.1 | 7.9 |
-| Vanax | 5.1 | 4.1 | 10.0 | 8.0 | 10.0 | 9.1 | 10.0 | 10.0 |
-| CPM 3V | 8.0 | 3.4 | 2.9 | 5.5 | 6.4 | 10.0 | 5.3 | 9.9 |
-| CPM S35VN | 4.5 | 4.1 | 6.9 | 2.9 | 7.8 | 7.5 | 6.6 | 6.9 |
-| M390 | 3.1 | 5.3 | 8.9 | 1.8 | 8.5 | 6.2 | 7.0 | 5.3 |
+| CPM MagnaCut | 6.6 | 4.2 | 6.3 | 1.9 | 8.4 | 9.6 | 7.3 | 7.4 |
+| Vanax | 5.1 | 4.1 | 10.0 | 8.0 | 10.0 | 9.1 | 10.0 | 8.0 |
+| CPM 3V | 8.0 | 3.4 | 2.9 | 5.5 | 6.4 | 10.0 | 5.4 | 9.4 |
+| CPM S35VN | 4.5 | 4.1 | 6.9 | 2.9 | 7.8 | 7.5 | 7.5 | 6.1 |
+| M390 | 3.1 | 5.3 | 8.9 | 1.8 | 8.5 | 6.2 | 8.7 | 4.8 |
 
 *Full results for all 134 steels in [`data/processed/all_predictions.csv`](data/processed/all_predictions.csv)*
 
