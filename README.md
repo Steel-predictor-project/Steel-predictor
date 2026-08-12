@@ -29,9 +29,14 @@ The models predict base material properties on a 1–10 scale, then combine them
 ```
 EDC:       40% edge retention + 30% corrosion + 25% toughness +  5% sharpening
 Hard Use:  60% toughness + 25% edge retention + 10% corrosion +  5% sharpening
-Kitchen:   35% corrosion + 35% edge retention + 20% sharpening + 10% toughness
-Bushcraft: 50% toughness + 20% edge retention + 20% sharpening + 10% corrosion
+Kitchen:   45% edge retention + 35% corrosion + 10% sharpening + 10% toughness
+Bushcraft: 55% toughness + 30% edge retention + 15% sharpening
 ```
+
+Corrosion resistance is deliberately absent from Bushcraft: because the geometric
+mean floors each property at 0.5, even a 10% corrosion weight made a predicted
+0.0 behave like a near-fatal flaw, which buried the carbon steels bushcraft
+knives are routinely made from. A bushcraft knife that needs oiling is normal.
 
 The combination is a weighted **geometric** mean, so a steel that is unusable in
 one dimension cannot average its way to a good score, and the result is rescaled

@@ -256,8 +256,8 @@ Each use case applies different importance to the four base properties:
 |----------|-----------|-----------|-----------|------------|-----------|
 | **EDC** | 0.40 | 0.30 | 0.25 | 0.05 | Pocket carry = sweat/humidity exposure; you sharpen rarely, so edge retention leads |
 | **Hard Use** | 0.25 | 0.10 | 0.60 | 0.05 | Batoning, prying, chopping — edge must not chip |
-| **Kitchen** | 0.35 | 0.35 | 0.10 | 0.20 | Acidic foods, frequent washing; regular maintenance expected |
-| **Bushcraft** | 0.20 | 0.10 | 0.50 | 0.20 | Impact tasks plus field sharpening on whatever stone you brought |
+| **Kitchen** | 0.45 | 0.35 | 0.10 | 0.10 | Acidic foods, frequent washing; long slicing sessions between sharpenings |
+| **Bushcraft** | 0.30 | — | 0.55 | 0.15 | Impact tasks plus field sharpening on whatever stone you brought; rust is managed with oil, not alloy |
 
 ### Score Calculation
 
@@ -270,7 +270,8 @@ desirability = Π max(property_i, 0.5) ^ weight_i
 use_case_score = 1 + 9 × (desirability − min) / (max − min)   # clamped to [1, 10]
 ```
 
-Two deliberate choices here, both fixing defects in the earlier linear version:
+Three deliberate choices here, the first two fixing defects in the earlier linear
+version:
 
 **Geometric, not arithmetic.** A weighted average lets excellence in one
 property paper over a weakness in another, which is not how a knife fails — a
@@ -288,6 +289,22 @@ and exported in `models/model_weights.json` under `use_case_scoring.anchors`, so
 browser-side inference reproduces the same numbers. A score of 10 means "best
 knife steel in this dataset for this use", not an absolute.
 
+**Corrosion resistance is excluded from Bushcraft, and down-weighted where it
+fights the use case.** The floor interacts with the weights in a way that is easy
+to miss: `max(property, 0.5)` means a predicted corrosion of 0.0 still
+contributes `0.5 ^ weight`, so even at a 10% weight a non-stainless steel lands
+~26% below an equally tough, equally sharp stainless one (`0.5^0.1 / 10^0.1 =
+0.74`) on that term alone — effectively a penalty for being carbon steel at all.
+That buried the
+carbon steels bushcraft knives are actually made from and floated
+rustproof-but-soft grades to the top: H1 (2.7 edge retention) ranked 3rd for
+bushcraft and 3Cr13 7th, both above CPM CruWear and 1095. Bushcraft therefore
+weights corrosion at zero — a bushcraft knife that needs oiling is normal — and
+is now led by CPM 1V, CPM 3V and CPM Rex 45. The same mechanism, plus a 0.20
+sharpening weight rewarding soft steels, put 7Cr17 7th and 9Cr18Mo 8th for
+kitchen while M390 sat 19th; kitchen now leads with edge retention and the top of
+the list is Vanax, CPM 20CV, CTS-204P and M390.
+
 The other 23 grades — hot-work die steels (Orvar, Vidar, QRO 90), plastic-mould
 steels (Corrax, Mirrax, Tyrax, Nimax, Idun, Impax, Formvar), pre-hardened holder
 steels (Ramax HH, Royalloy, Holdax) and machinery steels (Bure, Formax, Skolvar,
@@ -304,6 +321,12 @@ predictions are the validated output, and the use-case scores are a convenience
 layer on top. Note also that `ease_of_sharpening` is close to the inverse of
 `edge_retention` (both track carbide volume), so weighting the two heavily
 against each other cancels the signal rather than adding information.
+
+One visible consequence of scoring composition alone: AEB-L ranks ~50th for
+kitchen despite being a well-regarded kitchen steel, because its appeal is fine
+carbide structure and how thin an edge it takes — geometry and heat treatment,
+neither of which is an input here. Where a use-case score disagrees with received
+wisdom, check the four base properties before trusting the ranking.
 
 ---
 
