@@ -45,16 +45,15 @@
       "ease_of_sharpening": 0.05
     },
     "kitchen": {
+      "edge_retention": 0.45,
       "corrosion_resistance": 0.35,
-      "edge_retention": 0.35,
-      "ease_of_sharpening": 0.2,
+      "ease_of_sharpening": 0.1,
       "toughness": 0.1
     },
     "bushcraft": {
-      "toughness": 0.5,
-      "edge_retention": 0.2,
-      "ease_of_sharpening": 0.2,
-      "corrosion_resistance": 0.1
+      "toughness": 0.55,
+      "edge_retention": 0.3,
+      "ease_of_sharpening": 0.15
     }
   },
   "use_case_scoring": {
@@ -70,12 +69,12 @@
         "max": 5.727718370135187
       },
       "kitchen": {
-        "min": 1.4409132468487345,
-        "max": 6.5440915273475575
+        "min": 1.331208381272529,
+        "max": 6.1209488714369575
       },
       "bushcraft": {
-        "min": 1.3532956058374723,
-        "max": 5.714258155403263
+        "min": 1.3132006369674705,
+        "max": 6.194705144664828
       }
     },
     "anchor_population": "knife_steel == 1 in data/steel_applications.csv"

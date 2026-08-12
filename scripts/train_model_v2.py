@@ -88,14 +88,23 @@ CHARPY_MAX = 130.0  # maps to ~10.0
 
 # Use-case scoring weights (must sum to 1.0 per use case)
 #
-# Two notes on why these are what they are:
+# Three notes on why these are what they are:
 #
 # 1. `ease_of_sharpening` is close to the inverse of `edge_retention` (both are
 #    driven by carbide volume), so weighting the two heavily against each other
 #    cancels out the only dimension that separates steels. Earlier weightings
-#    did exactly that and collapsed every steel into a 2.4-7.0 band.
+#    did exactly that and collapsed every steel into a 2.4-7.0 band. `kitchen`
+#    keeps it lowest of all: at 0.20 it rewarded soft, easily-sharpened budget
+#    stainless (7Cr17, 9Cr18Mo) over the PM cutlery grades kitchen knives are
+#    actually made from.
 # 2. Weights express what a use case *demands*, not what any particular steel
 #    happens to be good at.
+# 3. Corrosion resistance is deliberately absent from `bushcraft`. Because the
+#    geometric mean floors each property at DESIRABILITY_FLOOR, even a 10%
+#    corrosion weight makes a predicted 0.0 behave like a near-fatal flaw, which
+#    buried the carbon steels that bushcraft knives are routinely made from and
+#    floated rustproof-but-soft grades (H1, 3Cr13) into the top ten. A bushcraft
+#    knife that needs oiling is normal, so the use case does not demand it.
 USE_CASE_WEIGHTS = {
     "edc": {
         "edge_retention": 0.40,
@@ -110,16 +119,15 @@ USE_CASE_WEIGHTS = {
         "ease_of_sharpening": 0.05,
     },
     "kitchen": {
+        "edge_retention": 0.45,
         "corrosion_resistance": 0.35,
-        "edge_retention": 0.35,
-        "ease_of_sharpening": 0.20,
+        "ease_of_sharpening": 0.10,
         "toughness": 0.10,
     },
     "bushcraft": {
-        "toughness": 0.50,
-        "edge_retention": 0.20,
-        "ease_of_sharpening": 0.20,
-        "corrosion_resistance": 0.10,
+        "toughness": 0.55,
+        "edge_retention": 0.30,
+        "ease_of_sharpening": 0.15,
     },
 }
 

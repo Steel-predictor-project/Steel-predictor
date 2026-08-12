@@ -29,9 +29,14 @@ The models predict base material properties on a 1–10 scale, then combine them
 ```
 EDC:       40% edge retention + 30% corrosion + 25% toughness +  5% sharpening
 Hard Use:  60% toughness + 25% edge retention + 10% corrosion +  5% sharpening
-Kitchen:   35% corrosion + 35% edge retention + 20% sharpening + 10% toughness
-Bushcraft: 50% toughness + 20% edge retention + 20% sharpening + 10% corrosion
+Kitchen:   45% edge retention + 35% corrosion + 10% sharpening + 10% toughness
+Bushcraft: 55% toughness + 30% edge retention + 15% sharpening
 ```
+
+Corrosion resistance is deliberately absent from Bushcraft: because the geometric
+mean floors each property at 0.5, even a 10% corrosion weight made a predicted
+0.0 behave like a near-fatal flaw, which buried the carbon steels bushcraft
+knives are routinely made from. A bushcraft knife that needs oiling is normal.
 
 The combination is a weighted **geometric** mean, so a steel that is unusable in
 one dimension cannot average its way to a good score, and the result is rescaled
@@ -96,11 +101,11 @@ property predictions but are excluded from the use-case scale. See
 
 | Steel | Tough | Edge | Corr | Sharp | EDC | Hard Use | Kitchen | Bushcraft |
 |-------|-------|------|------|-------|-----|----------|---------|-----------|
-| CPM MagnaCut | 6.6 | 4.2 | 6.3 | 1.9 | 8.4 | 9.6 | 6.1 | 7.9 |
-| Vanax | 5.1 | 4.1 | 10.0 | 8.0 | 10.0 | 9.1 | 10.0 | 10.0 |
-| CPM 3V | 8.0 | 3.4 | 2.9 | 5.5 | 6.4 | 10.0 | 5.3 | 9.9 |
-| CPM S35VN | 4.5 | 4.1 | 6.9 | 2.9 | 7.8 | 7.5 | 6.6 | 6.9 |
-| M390 | 3.1 | 5.3 | 8.9 | 1.8 | 8.5 | 6.2 | 7.0 | 5.3 |
+| CPM MagnaCut | 6.6 | 4.2 | 6.3 | 1.9 | 8.4 | 9.6 | 7.3 | 7.4 |
+| Vanax | 5.1 | 4.1 | 10.0 | 8.0 | 10.0 | 9.1 | 10.0 | 8.0 |
+| CPM 3V | 8.0 | 3.4 | 2.9 | 5.5 | 6.4 | 10.0 | 5.4 | 9.4 |
+| CPM S35VN | 4.5 | 4.1 | 6.9 | 2.9 | 7.8 | 7.5 | 7.5 | 6.1 |
+| M390 | 3.1 | 5.3 | 8.9 | 1.8 | 8.5 | 6.2 | 8.7 | 4.8 |
 
 *Full results for all 134 steels in [`data/processed/all_predictions.csv`](data/processed/all_predictions.csv)*
 
