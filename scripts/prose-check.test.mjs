@@ -660,3 +660,36 @@ test("still reads visible attributes in a multiline html tag", () => {
     check(source, "page.html").some((f) => f.message.includes('"seamless"')),
   );
 });
+
+test("reads published copy checked in as json", () => {
+  const source = JSON.stringify(
+    { hero: { headline: "A seamless way to file", id: "hero-1" } },
+    null,
+    2,
+  );
+  assert.ok(
+    check(source, "copy.json").some((f) => f.message.includes('"seamless"')),
+  );
+});
+
+test("ignores keys, ids and urls in json", () => {
+  const source = JSON.stringify(
+    {
+      seamless_section: { url: "https://example.com/robust", slug: "landscape" },
+      style: { padding: "12px 24px" },
+    },
+    null,
+    2,
+  );
+  assert.deepEqual(check(source, "copy.json"), []);
+});
+
+test("reports the line a json string sits on", () => {
+  const source = JSON.stringify(
+    { first: "433 companies never published a price.", second: "A robust plan" },
+    null,
+    2,
+  );
+  const [finding] = check(source, "copy.json");
+  assert.equal(finding.line, 3);
+});

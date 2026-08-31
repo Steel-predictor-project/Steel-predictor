@@ -58,13 +58,17 @@ function config() {
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
-function walk(path, out) {
+// A `.json` file is read only when the config names it directly: data directories
+// hold fixtures and lockfiles, but a copy deck checked in as JSON is published text.
+function walk(path, out, named = false) {
   const stat = statSync(path);
   if (stat.isDirectory()) {
     for (const entry of readdirSync(path)) {
       if (SKIP_DIR.has(entry)) continue;
       walk(join(path, entry), out);
     }
+  } else if (named && extname(path) === ".json") {
+    out.push(path);
   } else if (
     CODE_EXT.has(extname(path)) ||
     MARKDOWN_EXT.has(extname(path)) ||
@@ -89,7 +93,7 @@ function targets(argv) {
       process.exitCode = 1;
       continue;
     }
-    walk(path, files);
+    walk(path, files, true);
   }
   return [...new Set(files)].filter(
     (f) => !excluded.some((e) => f === e || f.startsWith(e + "/")),
@@ -601,10 +605,47 @@ function htmlParagraphs(source) {
   return groupLines(kept, breaks);
 }
 
+// Copy deck checked in as JSON: every string value is read, keys and machinery are
+// not. The line is found by matching the value where it is written in the file.
+function jsonParagraphs(source) {
+  let data;
+  try {
+    data = JSON.parse(source);
+  } catch {
+    return [];
+  }
+  const index = lineIndexer(source);
+  const blocks = [];
+  let cursor = 0;
+
+  const visit = (value) => {
+    if (Array.isArray(value)) return value.forEach(visit);
+    if (value && typeof value === "object") return Object.values(value).forEach(visit);
+    if (typeof value !== "string") return;
+    const encoded = JSON.stringify(value);
+    const at = source.indexOf(encoded, cursor);
+    if (at >= 0) cursor = at + encoded.length;
+    const text = value.replace(/<[^>]+>/g, ". ");
+    // The same filters the code scanner uses: an id, a route, a class list or a
+    // CSS value is data the reader never meets.
+    // A one-word value is a slug, an enum or a key, not a sentence a reader meets.
+    if (!/\s/.test(text)) return;
+    if (/^[@./#]/.test(text) || /^[a-z]+:\/\//.test(text)) return;
+    if (looksLikeClassList(text) || looksLikeCssValue(text) || looksLikeSql(text)) return;
+    const line = at >= 0 ? index.at(at) : 0;
+    blocks.push({ line, endLine: line, text, pieces: [{ start: 0, line }] });
+  };
+
+  visit(data);
+  return blocks;
+}
+
 function paragraphs(source, file) {
   const ext = extname(file);
   const blocks = MARKDOWN_EXT.has(ext)
     ? markdownParagraphs(source)
+    : ext === ".json"
+    ? jsonParagraphs(source)
     : HTML_EXT.has(ext)
     ? htmlParagraphs(source)
     : [
