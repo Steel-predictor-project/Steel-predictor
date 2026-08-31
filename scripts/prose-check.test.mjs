@@ -407,3 +407,256 @@ test("skips a code line the braces did not enclose", () => {
   ].join("\n");
   assert.deepEqual(check(source, "page.tsx"), []);
 });
+
+test("reads words separated by an escaped newline", () => {
+  const source = 'const copy = "Rebuilding was never the sales\\nmotion for this team.";';
+  assert.ok(messages(source).some((m) => m.includes("sales motion")));
+});
+
+test("counts a sentence split by escaped whitespace", () => {
+  const long = Array.from({ length: 50 }, (_, i) => `word${i}`).join("\\t");
+  const source = `const copy = "${long} and it keeps going.";`;
+  assert.ok(messages(source).some((m) => m.includes("limit 45")));
+});
+
+test("keeps an escaped quote inside copy", () => {
+  const source = 'const copy = "She called it \\"seamless\\" in the meeting.";';
+  assert.ok(messages(source).some((m) => m.includes('"seamless"')));
+});
+
+test("reads copy in a nested template literal", () => {
+  const source =
+    "const copy = `${ready ? `a robust path forward` : `a plain path forward`}`;";
+  assert.equal(
+    messages(source).filter((m) => m.includes('"robust"')).length,
+    1,
+  );
+});
+
+test("reads static copy inside a substitution", () => {
+  const source =
+    'const copy = `Start here. ${ready ? "a seamless handover" : "a manual handover"}`;';
+  assert.ok(messages(source).some((m) => m.includes('"seamless"')));
+});
+
+test("reports the line a nested template sits on", () => {
+  const source = [
+    "const copy = `",
+    "  Nothing wrong on this line, plenty of ordinary words to read.",
+    "  ${ready ? `the robust option` : `the other option`}",
+    "`;",
+  ].join("\n");
+  const finding = check(source, "fixture.ts").find((f) =>
+    f.message.includes('"robust"'),
+  );
+  assert.equal(finding.line, 3);
+});
+
+test("reads copy in one-line jsx", () => {
+  const source = [
+    "export function Note() {",
+    "  return <p>This is a seamless result for the reader.</p>;",
+    "}",
+  ].join("\n");
+  assert.ok(
+    check(source, "note.tsx").some((f) => f.message.includes('"seamless"')),
+  );
+});
+
+test("reads a one-word label in one-line jsx", () => {
+  const source = "const label = <span>Leverage</span>;";
+  assert.ok(
+    check(source, "note.tsx").some((f) => f.message.includes('"Leverage"')),
+  );
+});
+
+test("reads one-line jsx from an arrow, a map and an interpolation", () => {
+  const arrow = "const Item = () => <p>A robust summary of the work.</p>;";
+  const map = "const list = items.map((i) => <li>A robust list entry here.</li>);";
+  const interpolated = "const view = <p>A robust view of {count} filings.</p>;";
+  for (const source of [arrow, map, interpolated]) {
+    assert.ok(
+      check(source, "note.tsx").some((f) => f.message.includes('"robust"')),
+      source,
+    );
+  }
+});
+
+test("does not read a comparison as jsx text", () => {
+  const source = [
+    "export function Page() {",
+    "  const wide = width > threshold && height < limit;",
+    "  return null;",
+    "}",
+  ].join("\n");
+  assert.deepEqual(check(source, "page.tsx"), []);
+});
+
+test("reads copy that mentions a measurement", () => {
+  const source = 'const copy = "The seamless map tiles are 64px wide on mobile.";';
+  assert.ok(messages(source).some((m) => m.includes('"seamless"')));
+});
+
+test("still skips a plain css value", () => {
+  const source = [
+    'const gap = "12px 24px";',
+    'const shadow = "0 1px 2px rgba(0, 0, 0, 0.2)";',
+    'const width = "var(--sidebar-width)";',
+  ].join("\n");
+  assert.deepEqual(messages(source), []);
+});
+
+test("reads copy that opens with a sql-shaped word", () => {
+  const sources = [
+    'const copy = "Create a seamless account in one step.";',
+    'const copy = "Update your seamless profile whenever you like.";',
+    'const copy = "Delete the seamless draft you no longer need.";',
+    'const copy = "With one seamless call you get the whole filing.";',
+  ];
+  for (const source of sources) {
+    assert.ok(messages(source).some((m) => m.includes('"seamless"')), source);
+  }
+});
+
+test("still skips a real query", () => {
+  const source = [
+    "const q = `",
+    "  SELECT name, robust_score FROM companies",
+    "  WHERE robust_score IS NOT NULL",
+    "  ORDER BY robust_score DESC",
+    "`;",
+    'const write = "UPDATE companies SET robust_score = 1 WHERE id = 2";',
+  ].join("\n");
+  assert.deepEqual(messages(source), []);
+});
+
+test("checks prose after a leading thematic break", () => {
+  const source = ["---", "", "This is a seamless piece of prose.", ""].join("\n");
+  assert.ok(
+    check(source, "fixture.md").some((f) => f.message.includes('"seamless"')),
+  );
+});
+
+test("still skips real front matter", () => {
+  const source = [
+    "---",
+    "title: A seamless title",
+    "---",
+    "",
+    "Ordinary prose about the 433 companies.",
+  ].join("\n");
+  assert.deepEqual(check(source, "fixture.md"), []);
+});
+
+test("checks prose under a divider that never closes", () => {
+  const source = ["---", "A seamless paragraph with no closing divider."].join("\n");
+  assert.ok(
+    check(source, "fixture.md").some((f) => f.message.includes('"seamless"')),
+  );
+});
+
+test("does not join a markdown heading to the paragraph under it", () => {
+  const words = Array.from({ length: 40 }, (_, i) => `word${i}`).join(" ");
+  const source = [
+    "## A fairly long heading with several words in it",
+    `${words} and two more.`,
+  ].join("\n");
+  assert.deepEqual(
+    check(source, "fixture.md").filter((f) => f.message.includes("limit 45")),
+    [],
+  );
+});
+
+test("drops a markdown reference definition and label", () => {
+  const source = [
+    "Read [the filing data][seamless-source] for the numbers.",
+    "",
+    "[seamless-source]: https://example.com/seamless-robust-data",
+  ].join("\n");
+  assert.deepEqual(check(source, "fixture.md"), []);
+});
+
+test("checks alt text in markdown", () => {
+  const source = 'Look here: <img src="/a.png" alt="A seamless chart of filings">';
+  assert.ok(
+    check(source, "fixture.md").some((f) => f.message.includes('"seamless"')),
+  );
+});
+
+test("checks copy that follows a regular expression", () => {
+  const source = [
+    "const url = /https?:\\/\\//;",
+    'const copy = "A seamless process for the reader.";',
+  ].join("\n");
+  assert.ok(messages(source).some((m) => m.includes('"seamless"')));
+});
+
+test("still ignores a comment after a division", () => {
+  const source = [
+    "const half = total / 2; // a seamless comment nobody reads",
+    'const copy = "433 companies never published a price.";',
+  ].join("\n");
+  assert.deepEqual(messages(source), []);
+});
+
+test("drops an autolink destination in markdown", () => {
+  const source = "See <https://example.com/seamless-robust-data> for the numbers.";
+  assert.deepEqual(check(source, "fixture.md"), []);
+});
+
+test("drops a link target in a markdown table cell", () => {
+  const source = [
+    "| Source | Link |",
+    "| --- | --- |",
+    "| Filings | [the data](https://example.com/seamless-robust) |",
+  ].join("\n");
+  assert.deepEqual(check(source, "fixture.md"), []);
+});
+
+test("still reads visible text in a markdown table cell", () => {
+  const source = [
+    "| Source | Note |",
+    "| --- | --- |",
+    "| Filings | A seamless handover to the reader |",
+  ].join("\n");
+  assert.ok(
+    check(source, "fixture.md").some((f) => f.message.includes('"seamless"')),
+  );
+});
+
+test("reads jsx copy that contains a semicolon and a price", () => {
+  const source = "const View = () => <p>Filing is seamless; it costs $99 a month.</p>;";
+  assert.ok(
+    check(source, "fixture.tsx").some((f) => f.message.includes('"seamless"')),
+  );
+});
+
+test("still ignores a statement on a line with no jsx markup", () => {
+  const source = [
+    "const total = items.length;",
+    "const label = base + suffix;",
+  ].join("\n");
+  assert.deepEqual(check(source, "fixture.tsx"), []);
+});
+
+test("ignores structural attributes in a multiline html tag", () => {
+  const source = [
+    "<a",
+    '  class="robust-card seamless-grid"',
+    '  href="https://example.com/comprehensive-landscape"',
+    ">Read the filings</a>",
+  ].join("\n");
+  assert.deepEqual(check(source, "page.html"), []);
+});
+
+test("still reads visible attributes in a multiline html tag", () => {
+  const source = [
+    "<img",
+    '  src="/chart.png"',
+    '  alt="A seamless chart of the filings"',
+    "/>",
+  ].join("\n");
+  assert.ok(
+    check(source, "page.html").some((f) => f.message.includes('"seamless"')),
+  );
+});
