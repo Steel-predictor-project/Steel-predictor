@@ -208,3 +208,152 @@ test("a bold lead-in label starts a new block", () => {
   ].join("\n");
   assert.deepEqual(check(source, "README.md"), []);
 });
+
+test("ignores trailing and inline comments but not comment-like text in a literal", () => {
+  const source = [
+    'const a = "Read https://example.com/why-the-moat-matters for more."; // the moat is fine here',
+    'const b = /* "landscape" */ "39 of 47 sites had no pricing link.";',
+    "/*",
+    ' A block comment mentioning the landscape and a seamless, robust pipeline.',
+    "*/",
+    'const c = "Plain copy about the 433 companies.";',
+  ].join("\n");
+  assert.deepEqual(
+    messages(source).filter((m) => !m.includes('"moat"')),
+    [],
+  );
+  assert.ok(messages(source).some((m) => m.includes('"moat"')));
+});
+
+test("joins literals concatenated on one line", () => {
+  const source = 'export const copy = "Rebuilding was never the sales " + "motion here.";';
+  assert.ok(messages(source).some((m) => m.includes("sales motion")));
+});
+
+test("does not join literals that are not concatenated", () => {
+  const half = Array.from({ length: 30 }, (_, i) => `word${i}`).join(" ");
+  const source = [
+    "export const copy = {",
+    `  intro: "${half}",`,
+    `  outro: "${half}.",`,
+    "};",
+  ].join("\n");
+  assert.deepEqual(
+    messages(source).filter((m) => m.includes("limit 45")),
+    [],
+  );
+});
+
+test("checks a one-word label but not a class list", () => {
+  assert.ok(messages('const label = "Leverage";').some((m) => m.includes('"Leverage"')));
+  assert.deepEqual(messages('const cls = "flex items-center gap-2 text-sm";'), []);
+});
+
+test("a longer fence contains shorter fences", () => {
+  const source = [
+    "````md",
+    "```js",
+    'const label = "the opaque majority";',
+    "```",
+    "````",
+    "",
+    "Clean prose about the 433 companies.",
+  ].join("\n");
+  assert.deepEqual(check(source, "fixture.md"), []);
+});
+
+test("inline code spans honour their backtick run", () => {
+  const source = "A span ``like `this` seamless one`` stays code, and so does `robust`.";
+  assert.deepEqual(check(source, "fixture.md"), []);
+});
+
+test("checks prose indented under a list item but not an indented code block", () => {
+  const source = [
+    "- A list item.",
+    "",
+    "    The landscape sentence continues the item above.",
+    "",
+    "Plain paragraph.",
+    "",
+    "    const label = 'the opaque majority';",
+  ].join("\n");
+  const findings = check(source, "fixture.md");
+  assert.ok(findings.some((f) => f.message.includes('"landscape"')));
+  assert.deepEqual(findings.filter((f) => f.message.includes("opaque majority")), []);
+});
+
+test("reports each copy of a repeated long sentence on its own line", () => {
+  const long = Array.from({ length: 50 }, (_, i) => `word${i}`).join(" ") + ".";
+  const source = [long, "", long].join("\n");
+  const lines = check(source, "fixture.md")
+    .filter((f) => f.message.includes("limit 45"))
+    .map((f) => f.line);
+  assert.deepEqual(lines, [1, 3]);
+});
+
+test("an abbreviation does not end a sentence", () => {
+  const words = Array.from({ length: 40 }, (_, i) => `word${i}`).join(" ");
+  const source = `A price per seat (e.g. $12) then ${words} and eight more words to pass the limit.`;
+  assert.ok(check(source, "fixture.md").some((f) => f.message.includes("limit 45")));
+});
+
+test("html block elements on one line stay separate paragraphs", () => {
+  const half = Array.from({ length: 30 }, (_, i) => `word${i}`).join(" ");
+  const source = `<div><p>${half}.</p><p>${half}.</p></div>`;
+  assert.deepEqual(
+    check(source, "page.html").filter((f) => f.message.includes("limit 45")),
+    [],
+  );
+});
+
+test("checks html text a reader meets in attributes", () => {
+  const source = [
+    "<html><head>",
+    '<meta name="description" content="A seamless pipeline for 1,074 companies.">',
+    "</head><body>",
+    '<img src="/chart.png" alt="A robust chart of the 433 companies">',
+    '<input placeholder="Search the landscape">',
+    "</body></html>",
+  ].join("\n");
+  const messagesFound = check(source, "page.html").map((f) => f.message);
+  assert.ok(messagesFound.some((m) => m.includes('"seamless"')));
+  assert.ok(messagesFound.some((m) => m.includes('"robust"')));
+  assert.ok(messagesFound.some((m) => m.includes('"landscape"')));
+});
+
+test("ignores structural html attributes", () => {
+  const source = '<div class="flex items-center"><a href="/moat-and-wedge">Read it</a></div>';
+  assert.deepEqual(check(source, "page.html"), []);
+});
+
+test("ignores a multiline html comment in markdown and html", () => {
+  const source = ["<!--", "A note about the landscape and the moat.", "-->", "", "Clean copy."].join("\n");
+  assert.deepEqual(check(source, "fixture.md"), []);
+  assert.deepEqual(check(source, "page.html"), []);
+});
+
+test("checks jsx prose containing ordinary punctuation", () => {
+  const source = [
+    "export default function Page() {",
+    "  return (",
+    "    <section>",
+    "      <p>",
+    "        The scan is robust (and it runs offline).",
+    "      </p>",
+    "    </section>",
+    "  );",
+    "}",
+  ].join("\n");
+  assert.ok(check(source, "page.tsx").some((f) => f.message.includes('"robust"')));
+});
+
+test("checks jsx text inside a conditional expression", () => {
+  const source = [
+    "export default function Page({ ready }) {",
+    "  return (",
+    "    <p>{ready ? <span>A seamless run</span> : <span>Nothing yet</span>}</p>",
+    "  );",
+    "}",
+  ].join("\n");
+  assert.ok(check(source, "page.tsx").some((f) => f.message.includes('"seamless"')));
+});

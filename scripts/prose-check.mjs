@@ -18,6 +18,22 @@ const CODE_EXT = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]);
 const MARKDOWN_EXT = new Set([".md", ".mdx"]);
 const HTML_EXT = new Set([".html", ".htm"]);
 const BLOCK_TAG = /<\s*(p|li|h[1-6]|td|th|tr|div|section|article|blockquote|figcaption|dt|dd)[\s>]/i;
+// The same tags, opening or closing, so several elements on one line stay apart.
+const BLOCK_TAG_ALL =
+  /<\/?\s*(p|li|h[1-6]|td|th|tr|div|section|article|blockquote|figcaption|dt|dd)\b[^>]*>/gi;
+// Attributes a reader sees: search results, tooltips, screen readers, empty fields.
+const PROSE_ATTR =
+  /\b(?:alt|title|aria-label|placeholder)\s*=\s*"([^"]*)"|\b(?:alt|title|aria-label|placeholder)\s*=\s*'([^']*)'/gi;
+const META_DESCRIPTION =
+  /<meta[^>]*\b(?:name|property)\s*=\s*["'](?:description|og:description|twitter:description)["'][^>]*>/gi;
+const CONTENT_ATTR = /\bcontent\s*=\s*"([^"]*)"|\bcontent\s*=\s*'([^']*)'/i;
+const HTML_COMMENT = /<!--[\s\S]*?-->/g;
+// An inline code span closes on a run of backticks as long as the one that opened it,
+// so ``a `b` c`` is one span.
+const INLINE_CODE = /(`+)(.*?)\1/g;
+// A period after one of these does not end a sentence, unlike "etc." or "Inc.".
+const ABBREVIATION =
+  /(?:^|\s)(?:[eE]\.g|[iI]\.e|vs|approx|cf|al|fig|eq|Mr|Mrs|Ms|Dr|Prof|Jr|Sr|U\.S|[A-Z])\.["'\u2019\u201d)\]*_]*$/;
 const SKIP_DIR = new Set([
   "node_modules",
   ".git",
@@ -32,7 +48,6 @@ const SKIP_DIR = new Set([
 // Double, single and template literals. Template literals may span lines; the others may not.
 const LITERAL = /"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`/g;
 const IGNORE_LINE = /prose-check-ignore/;
-const COMMENT_LINE = /^\s*(\/\/|\/\*|\*)/;
 
 function config() {
   const path = join(repoRoot, "prose-check.config.json");
@@ -66,7 +81,9 @@ function targets(argv) {
   for (const entry of include) {
     const path = resolve(repoRoot, entry);
     if (!existsSync(path)) {
-      console.warn(`prose-check: ${entry} does not exist, skipping`);
+      // A renamed file or a typo would otherwise drop that copy out of CI silently.
+      console.error(`prose-check: ${entry} does not exist`);
+      process.exitCode = 1;
       continue;
     }
     walk(path, files);
@@ -76,10 +93,66 @@ function targets(argv) {
   );
 }
 
-// Blank out whole-line comments so a banned phrase quoted in a comment isn't read as copy.
-// Line offsets are preserved so reported line numbers still match the real file.
-function blankComments(lines) {
-  return lines.map((line) => (COMMENT_LINE.test(line) ? "" : line));
+// Blank out `//` and `/* */` comments so a banned phrase quoted in a comment isn't
+// read as copy, without touching comment-looking text inside a string. Comment
+// characters become spaces, so every offset and line number still matches the file.
+function blankComments(source) {
+  const out = source.split("");
+  let state = "code"; // code | line | block | " | ' | `
+  for (let i = 0; i < source.length; i++) {
+    const c = source[i];
+    const next = source[i + 1];
+    if (state === "code") {
+      if (c === "/" && next === "/") state = "line";
+      else if (c === "/" && next === "*") state = "block";
+      else if (c === '"' || c === "'" || c === "`") state = c;
+      if (state === "line" || state === "block") {
+        out[i] = " ";
+        out[i + 1] = " ";
+        i++;
+      }
+      continue;
+    }
+    if (state === "line") {
+      if (c === "\n") state = "code";
+      else out[i] = " ";
+      continue;
+    }
+    if (state === "block") {
+      if (c === "*" && next === "/") {
+        out[i] = " ";
+        out[i + 1] = " ";
+        i++;
+        state = "code";
+      } else if (c !== "\n") out[i] = " ";
+      continue;
+    }
+    // Inside a string or template literal.
+    if (c === "\\") i++;
+    else if (c === state) state = "code";
+  }
+  return out.join("");
+}
+
+// A class list (`"flex items-center gap-2 text-sm"`) is styling, not prose.
+function looksLikeClassList(text) {
+  const tokens = text.trim().split(/\s+/);
+  if (tokens.length < 2) return false;
+  const classy = tokens.filter((t) =>
+    /^-?[a-z0-9]+([-:/.][a-z0-9%.[\]()#-]+)+$/.test(t),
+  ).length;
+  return classy / tokens.length >= 0.6;
+}
+
+// A single word can still be a banned word (a `Leverage` button label), but an
+// identifier, path, key or class name is not prose.
+function isSingleWordProse(text) {
+  return /^[A-Za-z][A-Za-z'\u2019]*$/.test(text.trim());
+}
+
+// Replace every match with spaces, keeping the newlines so line numbers hold.
+function blankRanges(source, re) {
+  return source.replace(re, (match) => match.replace(/[^\n]/g, " "));
 }
 
 function lineIndexer(text) {
@@ -104,12 +177,20 @@ function lineIndexer(text) {
 // `"..." + "..."` across lines, so a paragraph is a run joined by trailing `+`.
 function codeParagraphs(source) {
   const lines = source.split("\n");
-  const scanned = blankComments(lines).join("\n");
+  const scanned = blankComments(source);
   const index = lineIndexer(scanned);
   const blocks = [];
+  // End offset of the literal seen last, whether or not it was kept: a skipped
+  // literal between two others breaks the run.
+  let prevEnd = -1;
+  let prevKept = false;
 
   for (const match of scanned.matchAll(LITERAL)) {
     const raw = match[0];
+    const gapJoins =
+      prevKept && /^\s*\+\s*$/.test(scanned.slice(prevEnd, match.index));
+    prevEnd = match.index + raw.length;
+    prevKept = false;
     const text = raw
       .slice(1, -1)
       .replace(/\\(.)/g, "$1")
@@ -121,8 +202,9 @@ function codeParagraphs(source) {
     if (lines.slice(startLine, endLine + 1).some((l) => IGNORE_LINE.test(l)))
       continue;
     // Skip identifiers, paths, imports and other non-prose strings.
-    if (!/\s/.test(text)) continue;
+    if (!/\s/.test(text) && !isSingleWordProse(text)) continue;
     if (/^[@./]/.test(text)) continue;
+    if (looksLikeClassList(text)) continue;
     // Coordinate and path data (SVG `d="M12 .5A11.5 ..."`) is not prose.
     const letters = (text.match(/[a-zA-Z]/g) ?? []).length;
     if (letters / text.length < 0.4) continue;
@@ -136,9 +218,11 @@ function codeParagraphs(source) {
       .slice(match.index + raw.length, index.starts[endLine + 1] ?? scanned.length)
       .replace(/\n$/, "");
     const continues = /^\s*\+\s*$/.test(tail);
+    prevKept = true;
 
     const prev = blocks.at(-1);
-    if (prev && prev.continues && startLine === prev.endLine + 1) {
+    // `"sales " + "motion"` on one line is one phrase, same as across lines.
+    if (prev && (gapJoins || (prev.continues && startLine === prev.endLine + 1))) {
       // Preserve the reader-visible spacing: the copy supplies its own spaces.
       const glue = /\s$/.test(prev.text) || /^\s/.test(text) ? "" : " ";
       prev.pieces.push({ start: prev.text.length + glue.length, line: startLine });
@@ -161,11 +245,14 @@ function codeParagraphs(source) {
 // Markdown paragraphs, with code fences, front matter, inline code, link targets
 // and HTML tags removed so only prose reaches the rules.
 function markdownParagraphs(source) {
-  const lines = source.split("\n");
+  const lines = blankRanges(source, HTML_COMMENT).split("\n");
   const kept = [];
   const breaks = new Set();
-  let inFence = false;
+  // The open fence marker and its length: a four-backtick fence holds three-backtick
+  // examples, so only a run of the same character and at least that long closes it.
+  let fence = null;
   let inFrontMatter = lines[0]?.trim() === "---";
+  let inList = false;
 
   lines.forEach((line, i) => {
     if (inFrontMatter) {
@@ -173,15 +260,26 @@ function markdownParagraphs(source) {
       kept.push("");
       return;
     }
-    if (/^\s*(```|~~~)/.test(line)) {
-      inFence = !inFence;
+    const fenceMark = line.match(/^\s*(`{3,}|~{3,})/);
+    if (fenceMark) {
+      const [char, length] = [fenceMark[1][0], fenceMark[1].length];
+      if (!fence) fence = { char, length };
+      else if (char === fence.char && length >= fence.length) fence = null;
       kept.push("");
       return;
     }
-    if (inFence || IGNORE_LINE.test(line) || /^\s{4,}\S/.test(line)) {
+    if (fence || IGNORE_LINE.test(line)) {
       kept.push("");
       return;
     }
+    // Indented text is a code block, unless it continues the list item above it.
+    // A blank line does not end a list: its next paragraph may be indented under it.
+    if (/^\s{4,}\S/.test(line) && !inList) {
+      kept.push("");
+      return;
+    }
+    if (/^\s*([-*+]|\d+\.)\s/.test(line)) inList = true;
+    else if (line.trim() && !/^\s{2,}\S/.test(line)) inList = false;
     // A list item, a bold lead-in label or a table row is its own idea: start a
     // new block, and drop the cell dividers so a table row isn't read as one
     // long sentence.
@@ -193,12 +291,12 @@ function markdownParagraphs(source) {
         return;
       }
       breaks.add(kept.length);
-      kept.push(line.replace(/\|/g, ". ").replace(/`[^`]*`/g, " "));
+      kept.push(line.replace(/\|/g, ". ").replace(INLINE_CODE, " "));
       return;
     }
     kept.push(
       line
-        .replace(/`[^`]*`/g, " ")
+        .replace(INLINE_CODE, " ")
         .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
         .replace(/<[^>]+>/g, " ")
         .replace(/^\s*[#>*\-+]+\s*/, "")
@@ -236,18 +334,27 @@ function groupLines(kept, breaks = new Set()) {
 // Copy written directly as JSX text rather than as a string literal. Tags and
 // `{expressions}` are dropped; anything still carrying code punctuation is not prose.
 function jsxTextParagraphs(source) {
-  const kept = blankComments(source.split("\n")).map((line) => {
-    const text = line
-      .replace(/\{[^{}]*\}/g, " ")
-      .replace(/<[^>]*>/g, " ")
-      .replace(/&rsquo;|&apos;|&#39;/g, "'")
-      .replace(/&[a-z]+;|&#\d+;/g, " ");
-    if (/[=;{}()[\]`$<>]/.test(text)) return "";
-    // Property signatures and list items in object/type bodies are not prose.
-    if (/[,:]\s*$/.test(text)) return "";
-    const words = text.trim().split(/\s+/).filter((w) => /[a-zA-Z]/.test(w));
-    return words.length < 2 ? "" : text.trim();
-  });
+  const kept = blankComments(source)
+    .split("\n")
+    .map((line) => {
+      const text = line
+        // An expression is code, but a conditional or a map can hold visible text
+        // between tags; keep that and drop the rest.
+        .replace(/\{[^{}]*\}/g, (expr) =>
+          [...expr.matchAll(/>([^<>{}]+)</g)].map((m) => m[1]).join(". ") || " ",
+        )
+        .replace(/<[^>]*>/g, " ")
+        .replace(/&rsquo;|&apos;|&#39;/g, "'")
+        .replace(/&[a-z]+;|&#\d+;/g, " ");
+      // Parentheses are ordinary punctuation in copy, so only code-only characters
+      // disqualify a line.
+      if (/[=;{}[\]`$<>]/.test(text)) return "";
+      // Property signatures and list items in object/type bodies are not prose.
+      if (/[,:]\s*$/.test(text)) return "";
+      const words = text.trim().split(/\s+/).filter((w) => /[a-zA-Z]/.test(w));
+      if (words.length === 1 && isSingleWordProse(words[0])) return text.trim();
+      return words.length < 2 ? "" : text.trim();
+    });
   return groupLines(kept);
 }
 
@@ -260,11 +367,19 @@ function htmlParagraphs(source) {
     (match) => match.replace(/[^\n]/g, " "),
   );
   const breaks = new Set();
-  const kept = blanked.split("\n").map((line, i) => {
+  const kept = blankRanges(blanked, HTML_COMMENT).split("\n").map((line, i) => {
     if (IGNORE_LINE.test(line)) return "";
     if (BLOCK_TAG.test(line)) breaks.add(i);
-    return line
-      .replace(/<!--[\s\S]*?-->/g, " ")
+    // Copy the reader meets outside the text flow: alt text, tooltips, search results.
+    const attrs = [];
+    for (const hit of line.matchAll(PROSE_ATTR)) attrs.push(hit[1] ?? hit[2]);
+    for (const tag of line.match(META_DESCRIPTION) ?? []) {
+      const content = tag.match(CONTENT_ATTR);
+      if (content) attrs.push(content[1] ?? content[2]);
+    }
+    return (attrs.filter(Boolean).map((a) => a + ". ").join("") + line)
+      // A block element ends a sentence, so two of them on one line stay apart.
+      .replace(BLOCK_TAG_ALL, ". ")
       .replace(/<[^>]*>/g, " ")
       .replace(/&(nbsp|#160);/g, " ")
       .replace(/&(rsquo|apos|#39);/g, "'")
@@ -293,13 +408,28 @@ function paragraphs(source, file) {
   }));
 }
 
+// Sentences with the offset each one starts at, so two identical sentences in one
+// paragraph each report their own line. Splits after terminal punctuation, allowing
+// closing quotes, brackets and leftover emphasis markers before the space.
 function sentences(text) {
-  // Split after terminal punctuation, allowing closing quotes, brackets and
-  // leftover emphasis markers between the period and the space.
-  return text
-    .split(/(?<=[.!?]["'\u2019\u201d)\]*_]{0,3})\s+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const out = [];
+  let offset = 0;
+  let pending = null;
+  for (const part of text.split(/(?<=[.!?]["'\u2019\u201d)\]*_]{0,3})\s+/)) {
+    const trimmed = part.trim();
+    const start = offset + (part.length - part.trimStart().length);
+    offset += part.length + 1; // rejoining costs one separator
+    if (!trimmed) continue;
+    // "priced per seat (e.g. $12) and ..." is one sentence, not two.
+    if (pending) {
+      pending.text += " " + trimmed;
+    } else {
+      pending = { text: trimmed, start };
+      out.push(pending);
+    }
+    if (!ABBREVIATION.test(pending.text)) pending = null;
+  }
+  return out;
 }
 
 // Which source line a character of the joined paragraph came from.
@@ -336,13 +466,13 @@ export function check(source, rel) {
     }
 
     for (const sentence of sentences(block.text)) {
-      const words = sentence.split(/\s+/).length;
+      const words = sentence.text.split(/\s+/).length;
       if (words > maxSentenceWords) {
         record(
-          lineOfIndex(block, block.text.indexOf(sentence)),
+          lineOfIndex(block, sentence.start),
           "error",
           `sentence runs ${words} words (limit ${maxSentenceWords})`,
-          sentence,
+          sentence.text,
           "split it; one clause per idea",
         );
       }
