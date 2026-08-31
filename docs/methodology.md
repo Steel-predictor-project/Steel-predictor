@@ -292,9 +292,9 @@ knife steel in this dataset for this use", not an absolute.
 **Corrosion resistance is excluded from Bushcraft, and down-weighted where it
 fights the use case.** The floor interacts with the weights in a way that is easy
 to miss: `max(property, 0.5)` means a predicted corrosion of 0.0 still
-contributes `0.5 ^ weight`, so even at a 10% weight a non-stainless steel lands
+contributes `0.5 ^ weight`. Even at a 10% weight, a non-stainless steel lands
 ~26% below an equally tough, equally sharp stainless one (`0.5^0.1 / 10^0.1 =
-0.74`) on that term alone — effectively a penalty for being carbon steel at all.
+0.74`) on that term alone, which is a penalty for being carbon steel at all.
 That buried the
 carbon steels bushcraft knives are actually made from and floated
 rustproof-but-soft grades to the top: H1 (2.7 edge retention) ranked 3rd for
@@ -305,11 +305,11 @@ sharpening weight rewarding soft steels, put 7Cr17 7th and 9Cr18Mo 8th for
 kitchen while M390 sat 19th; kitchen now leads with edge retention and the top of
 the list is Vanax, CPM 20CV, CTS-204P and M390.
 
-The other 23 grades — hot-work die steels (Orvar, Vidar, QRO 90), plastic-mould
-steels (Corrax, Mirrax, Tyrax, Nimax, Idun, Impax, Formvar), pre-hardened holder
-steels (Ramax HH, Royalloy, Holdax) and machinery steels (Bure, Formax, Skolvar,
-Viking, UHB 11, Carmo) — still receive property predictions, but are excluded
-from the scale. Including them is what previously ranked Uddeholm mould steels
+The other 23 grades still receive property predictions, but are excluded from the
+scale. They are hot-work die steels (Orvar, Vidar, QRO 90), plastic-mould steels
+(Corrax, Mirrax, Tyrax, Nimax, Idun, Impax, Formvar), pre-hardened holder steels
+(Ramax HH, Royalloy, Holdax) and machinery steels (Bure, Formax, Skolvar,
+Viking, UHB 11, Carmo). Including them is what previously ranked Uddeholm mould steels
 among the top "EDC steels".
 
 ### Interpretation and limits
@@ -354,7 +354,7 @@ wisdom, check the four base properties before trusting the ranking.
 
 5. **Corrosion is environment-independent** — Real corrosion depends on exposure (saltwater vs dry carry vs food acids). Our score represents intrinsic resistance, not a specific environment.
 
-6. **Small training set** — 48 steels for edge retention is enough for tree ensembles but limits detection of rare interactions (e.g., Co+W synergies in HSS steels).
+6. **Small training set** — 48 steels for edge retention is enough for tree ensembles but limits detection of rare interactions (e.g., Co and W together in HSS steels).
 
 7. **Bias toward popular steels** — The training set over-represents Crucible CPM steels and under-represents Chinese and budget steels.
 

@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>How We Built the Steel Property Predictor: A Technical Deep Dive</title>
-    <meta name="description" content="A technical deep dive into an XGBoost + RandomForest + Ridge ensemble that predicts knife steel properties from composition with only 48 training samples — feature engineering, small-data ML, and leave-one-out validation.">
+    <title>How We Built the Steel Property Predictor</title>
+    <meta name="description" content="How an XGBoost + RandomForest + Ridge ensemble that predicts knife steel properties from composition with only 48 training samples — feature engineering, small-data ML, and leave-one-out validation.">
     <link rel="canonical" href="https://steel-predictor-project.github.io/Steel-predictor/technical-deep-dive.html">
     <meta property="og:type" content="article">
-    <meta property="og:title" content="How We Built the Steel Property Predictor: A Technical Deep Dive">
+    <meta property="og:title" content="How We Built the Steel Property Predictor">
     <meta property="og:description" content="Small-data ML for materials science: predicting knife steel properties from alloy composition with an XGBoost + RF + Ridge ensemble and physics-informed features.">
     <meta property="og:url" content="https://steel-predictor-project.github.io/Steel-predictor/technical-deep-dive.html">
     <meta name="twitter:card" content="summary_large_image">
@@ -16,8 +16,8 @@
     {
       "@context": "https://schema.org",
       "@type": "TechArticle",
-      "headline": "How We Built the Steel Property Predictor: A Technical Deep Dive",
-      "description": "A technical deep dive into an XGBoost + RandomForest + Ridge ensemble that predicts knife steel properties from composition with only 48 training samples.",
+      "headline": "How We Built the Steel Property Predictor",
+      "description": "How an XGBoost + RandomForest + Ridge ensemble that predicts knife steel properties from composition with only 48 training samples.",
       "author": { "@type": "Organization", "name": "Steel Property Predictor Project" },
       "keywords": "machine learning, materials science, XGBoost, knife steel, small-data ML, feature engineering"
     }
@@ -28,7 +28,7 @@
         <nav class="breadcrumb"><a href="index.html">← Steel Property Predictor</a></nav>
 
         <header class="article-header">
-            <h1>How We Built the Steel Property Predictor: A Technical Deep Dive</h1>
+            <h1>How We Built the Steel Property Predictor</h1>
             <p class="deck">Predicting four mechanical properties of martensitic tool and cutlery steels from chemical composition — with only 48 labeled training samples. Here is how the model works, and why it is mostly feature engineering.</p>
             <p class="article-meta">Technical write-up · Machine learning + metallurgy</p>
         </header>
@@ -36,7 +36,7 @@
         <article>
             <p>Knife steel is a small-data problem with a lot of domain structure. There are only a few dozen steels with standardized, published mechanical measurements, but there are more than a century of metallurgy telling you <em>why</em> composition drives performance. That combination — few labels, strong priors — dictates almost every modeling decision in this project.</p>
 
-            <p>This post walks through the whole pipeline: how raw composition becomes features, why edge retention is machine-learned while corrosion is computed from first principles, and how we validate a model trained on 48 examples without fooling ourselves.</p>
+            <p>This post walks through the whole pipeline: how raw composition becomes features, why edge retention is machine-learned while corrosion is computed straight from the chemistry, and how we validate a model trained on 48 examples without fooling ourselves.</p>
 
             <h2>The prediction target</h2>
             <p>For each steel we predict four base properties on a 1–10 scale:</p>

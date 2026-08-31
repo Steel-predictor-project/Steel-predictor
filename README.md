@@ -39,8 +39,8 @@ mean floors each property at 0.5, even a 10% corrosion weight made a predicted
 knives are routinely made from. A bushcraft knife that needs oiling is normal.
 
 The combination is a weighted **geometric** mean, so a steel that is unusable in
-one dimension cannot average its way to a good score, and the result is rescaled
-onto 1–10 against the 111 knife steels in the dataset — 10 is the best knife
+one dimension cannot average its way to a good score. The result is rescaled onto
+1–10 against the 111 knife steels in the dataset, where 10 is the best knife
 steel here for that use. The remaining 23 grades are hot-work, plastic-mould,
 holder and machinery steels that nobody builds knives from; they still get
 property predictions but are excluded from the use-case scale. See
@@ -228,7 +228,7 @@ This project uses two licenses:
 
 ### Technical write-ups
 
-- [How We Built the Steel Property Predictor: A Technical Deep Dive](https://steel-predictor-project.github.io/Steel-predictor/technical-deep-dive.html)
+- [How We Built the Steel Property Predictor](https://steel-predictor-project.github.io/Steel-predictor/technical-deep-dive.html)
 - [What Makes a Steel "Tough"? A Data-Driven Answer](https://steel-predictor-project.github.io/Steel-predictor/what-makes-a-steel-tough.html)
 - [How Carbon Content Actually Affects Knife Performance](https://steel-predictor-project.github.io/Steel-predictor/how-carbon-content-affects-performance.html)
 - [Powder Metallurgy vs Conventional Steel: What the Numbers Say](https://steel-predictor-project.github.io/Steel-predictor/pm-vs-conventional-steel.html)
