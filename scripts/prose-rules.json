@@ -1,0 +1,123 @@
+{
+  "comment": "Phrases to avoid in reader-facing prose (content/*.ts). Each rule has a regex, a reason, and a plain-English replacement to reach for. Sourced from Hacker News feedback on the saas-scanner writeup plus the usual LLM tells. Add to this list rather than arguing with it in review.",
+  "banned": [
+    {
+      "re": "\\b(sales|marketing|GTM|go-to-market|no-call)\\s+motion\\b",
+      "why": "consulting jargon; a reader outside B2B SaaS has to guess",
+      "instead": "say the concrete activity: \"calls and demos\", \"cold outreach\", \"selling by phone\""
+    },
+    {
+      "re": "\\bthe\\s+(perfect|right|wrong|exact)\\s+shape\\b",
+      "why": "shape metaphor with no referent",
+      "instead": "name the properties: \"published its price, self-serve signup, under $200/mo\""
+    },
+    {
+      "re": "\\b[a-z]+-shaped\\b",
+      "why": "coined compound adjective the reader has to decode",
+      "instead": "describe the thing plainly"
+    },
+    {
+      "re": "\\bthe\\s+(opaque|silent|invisible|quiet|fat|thin)\\s+(majority|minority|middle|tail|layer|cohort)\\b",
+      "why": "abstract noun phrase standing in for a number",
+      "instead": "give the count: \"the 433 companies with no published price\""
+    },
+    {
+      "re": "\\bthe\\s+long\\s+tail\\b",
+      "why": "borrowed term; fine once if the sentence around it is concrete",
+      "instead": "name what is in the tail",
+      "severity": "warn"
+    },
+    {
+      "re": "\\bshelf[- ]ranked\\b|\\bshelf\\s+ranked\\s+by\\b",
+      "why": "metaphor doing load-bearing work",
+      "instead": "\"a list ordered by installs and reviews\""
+    },
+    {
+      "re": "\\bcard-swipe\\s+range\\b",
+      "why": "coinage; the number is clearer than the label",
+      "instead": "\"cheap enough to put on a credit card ($15-200/mo)\""
+    },
+    {
+      "re": "\\bpull\\s+channel\\b|\\bdistribution\\s+surface\\b|\\bwedges?\\b",
+      "why": "startup jargon",
+      "instead": "say where the customers actually come from"
+    },
+    {
+      "re": "\\bCTAs?\\b",
+      "caseSensitive": true,
+      "why": "startup jargon; the reader sees a button, not an acronym",
+      "instead": "\"the \\\"book a demo\\\" button\", or name the link"
+    },
+    {
+      "re": "\\bmoats?\\b",
+      "why": "VC shorthand; fine in a pitch deck, opaque in an essay",
+      "instead": "\"what actually stops a competitor\", or name it: \"switching costs\""
+    },
+    {
+      "re": "\\bleverage(d|s|ing)?\\b",
+      "why": "verb-as-jargon",
+      "instead": "\"use\""
+    },
+    {
+      "re": "\\b(delve|delves|delving)\\b",
+      "why": "LLM tell",
+      "instead": "\"look at\""
+    },
+    {
+      "re": "\\b(landscape|realm|tapestry|ecosystem of|paradigm|synergy|synergies)\\b",
+      "why": "LLM tell / filler abstraction",
+      "instead": "name the actual thing"
+    },
+    {
+      "re": "\\bunderscor(es|ing)\\s+(the|how|that|why|a|an|its|our|their)\\b|\\b(highlights the importance|testament to|speaks volumes)\\b",
+      "why": "LLM tell",
+      "instead": "state the point directly"
+    },
+    {
+      "re": "\\b(seamless|seamlessly|robust|holistic|comprehensive|cutting-edge|state-of-the-art|game-?changer|revolutionize[sd]?|elevate[sd]?|harness(es|ed|ing)?\\s+(the|its|our|their)|showcase[sd]?|foster(s|ed|ing)?|streamline[sd]?|unlock(s|ed|ing)?\\s+value)\\b",
+      "why": "marketing filler",
+      "instead": "delete, or give the specific benefit"
+    },
+    {
+      "re": "\\b(furthermore|moreover|additionally,|in conclusion|it('|\u2019)s worth noting|it is important to note|at the end of the day|that being said)\\b",
+      "why": "LLM connective tissue",
+      "instead": "delete; start the sentence with its content"
+    },
+    {
+      "re": "\\bnot\\s+(only|just)\\b[^.]{0,60}\\bbut\\s+also\\b",
+      "why": "LLM sentence template",
+      "instead": "two plain sentences"
+    },
+    {
+      "re": "\\bin\\s+today('|\u2019)s\\s+\\w+",
+      "why": "LLM opener",
+      "instead": "delete"
+    },
+    {
+      "re": "\\b(crucial|pivotal|meticulous(ly)?|myriad|plethora|nuanced)\\b",
+      "why": "LLM vocabulary",
+      "instead": "\"important\", \"careful\", \"many\" — or delete"
+    },
+    {
+      "re": "\\bdeep\\s+dive\\b|\\bdouble\\s+down\\b|\\bmove\\s+the\\s+needle\\b|\\bfirst\\s+principles\\b",
+      "why": "business cliche",
+      "instead": "say what you did"
+    },
+    {
+      "re": "\\bsurfaced?\\s+(a|an|the|two|three)\\b",
+      "why": "\"surface\" as a verb reads like a product spec",
+      "instead": "\"turned up\", \"found\""
+    },
+    {
+      "re": "(?<!off-the-)(?<!off the )\\bshelf\\b(?!\\s+life)",
+      "why": "marketplace-as-shelf metaphor; keep at most one, defined on first use",
+      "instead": "\"marketplace listing page\"",
+      "severity": "warn"
+    }
+  ],
+  "structure": {
+    "maxSentenceWords": 45,
+    "maxEmDashesPerBlock": 2,
+    "maxParenAsidesPerBlock": 2
+  }
+}
