@@ -185,3 +185,26 @@ test("reads published html pages and skips script bodies", () => {
   assert.ok(findings.some((f) => f.message.includes('"seamless"') && f.line === 6));
   assert.equal(findings.filter((f) => f.line < 4).length, 0);
 });
+
+test("skips sql written as a template literal", () => {
+  const source = [
+    "const rows = await sql`",
+    "  SELECT b->>'name' AS name, count(*) AS bids, sum(amount) AS total",
+    "  FROM bids WHERE county = ${county} GROUP BY 1 ORDER BY total DESC LIMIT 50",
+    "`;",
+  ].join("\n");
+  assert.deepEqual(check(source, "route.ts"), []);
+});
+
+test("a bold lead-in label starts a new block", () => {
+  const source = [
+    "**Phase 1:** API integration (3-4 days)",
+    "**Phase 2:** Permits table and filters (4-5 days)",
+    "**Phase 3:** Permit detail page (4-5 days)",
+    "**Phase 4:** Search (4-5 days)",
+    "**Phase 5:** Interactive map (6-7 days)",
+    "**Phase 6:** Analytics dashboard (5-6 days, optional)",
+    "**Phase 7:** Polish and optimization (5-7 days)",
+  ].join("\n");
+  assert.deepEqual(check(source, "README.md"), []);
+});

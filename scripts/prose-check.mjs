@@ -128,6 +128,9 @@ function codeParagraphs(source) {
     if (letters / text.length < 0.4) continue;
     // Skip CSS blocks written as template literals (styled-jsx, emotion).
     if (/(^|\n)\s*[-a-zA-Z]+\s*:\s*[^;\n{}]+;/.test(text)) continue;
+    // Skip SQL written as a template literal: it is a query, not a sentence.
+    if (/^\s*(SELECT|INSERT|UPDATE|DELETE|WITH|CREATE|ALTER|DROP)\s/i.test(text))
+      continue;
 
     const tail = scanned
       .slice(match.index + raw.length, index.starts[endLine + 1] ?? scanned.length)
@@ -179,9 +182,11 @@ function markdownParagraphs(source) {
       kept.push("");
       return;
     }
-    // A list item or table row is its own idea: start a new block, and drop the
-    // cell dividers so a table row isn't read as one long sentence.
-    if (/^\s*([-*+]|\d+\.)\s/.test(line)) breaks.add(kept.length);
+    // A list item, a bold lead-in label or a table row is its own idea: start a
+    // new block, and drop the cell dividers so a table row isn't read as one
+    // long sentence.
+    if (/^\s*([-*+]|\d+\.)\s/.test(line) || /^\s*\*\*/.test(line))
+      breaks.add(kept.length);
     if (/^\s*\|/.test(line)) {
       if (/^[\s|:-]+$/.test(line)) {
         kept.push("");
