@@ -357,3 +357,53 @@ test("checks jsx text inside a conditional expression", () => {
   ].join("\n");
   assert.ok(check(source, "page.tsx").some((f) => f.message.includes('"seamless"')));
 });
+
+test("skips class lists, css values and tagged sql with substitutions", () => {
+  const source = [
+    "const cls = `px-3 py-1 text-xs font-medium rounded-sm ${active ? 'on' : 'off'}`;",
+    "const grid = 'linear-gradient(var(--text-tertiary) 1px, transparent 1px)';",
+    "const size = '64px 64px';",
+    "await sql`insert into bids (source, external_id) values ('gdot', ${id})`;",
+  ].join("\n");
+  assert.deepEqual(check(source, "page.tsx"), []);
+});
+
+test("skips values of attributes a reader never reads", () => {
+  const source = [
+    'const a = <a href="/the-moat-and-the-wedge" className="flex items-center">Read it</a>;',
+    'const b = <img src="/landscape-of-things.png" alt="A robust chart" />;',
+  ].join("\n");
+  const found = check(source, "page.tsx").map((f) => f.message);
+  assert.deepEqual(found.filter((m) => m.includes('"moat"') || m.includes('"landscape"')), []);
+  assert.ok(found.some((m) => m.includes('"robust"')));
+});
+
+test("still checks copy that interpolates a value", () => {
+  const source = "const msg = `We found ${n} companies with a seamless pricing page.`;";
+  assert.ok(messages(source).some((m) => m.includes('"seamless"')));
+});
+
+test("skips a sql fragment without a leading keyword", () => {
+  const source = "const q = `array_agg(DISTINCT br.county) FILTER (WHERE br.county IS NOT NULL) AS counties FROM bid_results br`;";
+  assert.deepEqual(check(source, "route.ts"), []);
+});
+
+test("still reads a sentence that mentions where data comes from", () => {
+  const source = 'const note = "This is where the seamless data comes from, and where it goes.";';
+  assert.ok(messages(source).some((m) => m.includes('"seamless"')));
+});
+
+test("skips a code line the braces did not enclose", () => {
+  const source = [
+    "export default function Page() {",
+    "  return (",
+    "    <div>",
+    "      {days",
+    "        ? Math.ceil((new Date(bid.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24))",
+    "        : null}",
+    "    </div>",
+    "  );",
+    "}",
+  ].join("\n");
+  assert.deepEqual(check(source, "page.tsx"), []);
+});

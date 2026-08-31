@@ -31,6 +31,12 @@ const HTML_COMMENT = /<!--[\s\S]*?-->/g;
 // An inline code span closes on a run of backticks as long as the one that opened it,
 // so ``a `b` c`` is one span.
 const INLINE_CODE = /(`+)(.*?)\1/g;
+// `${...}` in a template literal, innermost first so nested braces unwrap.
+const SUBSTITUTION = /\$\{[^{}]*\}/g;
+// CSS values written as a string: custom properties, functions, lengths.
+const CSS_VALUE = /var\(--|[a-z-]+\([^)]*\)\s*(,|$)|\d+(px|rem|em|vh|vw|fr)\b/;
+// Attributes whose value is machinery, not copy.
+const CODE_ATTR = /\b(className|class|style|href|src|id|key|d|path|url|type|name|role|to|as|from)\s*[=:]\s*\{?$/;
 // A period after one of these does not end a sentence, unlike "etc." or "Inc.".
 const ABBREVIATION =
   /(?:^|\s)(?:[eE]\.g|[iI]\.e|vs|approx|cf|al|fig|eq|Mr|Mrs|Ms|Dr|Prof|Jr|Sr|U\.S|[A-Z])\.["'\u2019\u201d)\]*_]*$/;
@@ -144,6 +150,23 @@ function looksLikeClassList(text) {
   return classy / tokens.length >= 0.6;
 }
 
+// A query, not a sentence: SQL leads with a keyword, or piles several of them up
+// in a template literal the checker sees only part of.
+function looksLikeSql(text) {
+  if (/^\s*(SELECT|INSERT|UPDATE|DELETE|WITH|CREATE|ALTER|DROP)\s/i.test(text))
+    return true;
+  // "where the data comes from" is a sentence, so a couple of ordinary words is
+  // not enough: the fragment also needs a construction only SQL writes.
+  const sqlOnly =
+    /\b(SELECT|GROUP BY|ORDER BY|LEFT JOIN|INNER JOIN|ON CONFLICT|IS NOT NULL|array_agg|COUNT\()/i.test(
+      text,
+    );
+  const keywords = text.match(
+    /\b(SELECT|FROM|WHERE|VALUES|GROUP BY|ORDER BY|JOIN|ON CONFLICT|IS NOT NULL|array_agg|COUNT)\b/gi,
+  );
+  return sqlOnly && (keywords?.length ?? 0) >= 2;
+}
+
 // A single word can still be a banned word (a `Leverage` button label), but an
 // identifier, path, key or class name is not prose.
 function isSingleWordProse(text) {
@@ -194,6 +217,9 @@ function codeParagraphs(source) {
     const text = raw
       .slice(1, -1)
       .replace(/\\(.)/g, "$1")
+      // What a `${...}` substitution prints is not in the source; the words around
+      // it are.
+      .replace(SUBSTITUTION, " ")
       // A tag ends whatever text preceded it: markup inside a literal (inline SVG,
       // an HTML snippet) holds separate labels, not one long sentence.
       .replace(/<[^>]+>/g, ". ");
@@ -205,14 +231,17 @@ function codeParagraphs(source) {
     if (!/\s/.test(text) && !isSingleWordProse(text)) continue;
     if (/^[@./]/.test(text)) continue;
     if (looksLikeClassList(text)) continue;
+    if (CSS_VALUE.test(text)) continue;
+    // A value a reader never meets: a class list, a route, a key, an SVG path.
+    if (CODE_ATTR.test(scanned.slice(Math.max(0, match.index - 40), match.index)))
+      continue;
     // Coordinate and path data (SVG `d="M12 .5A11.5 ..."`) is not prose.
     const letters = (text.match(/[a-zA-Z]/g) ?? []).length;
     if (letters / text.length < 0.4) continue;
     // Skip CSS blocks written as template literals (styled-jsx, emotion).
     if (/(^|\n)\s*[-a-zA-Z]+\s*:\s*[^;\n{}]+;/.test(text)) continue;
     // Skip SQL written as a template literal: it is a query, not a sentence.
-    if (/^\s*(SELECT|INSERT|UPDATE|DELETE|WITH|CREATE|ALTER|DROP)\s/i.test(text))
-      continue;
+    if (looksLikeSql(text)) continue;
 
     const tail = scanned
       .slice(match.index + raw.length, index.starts[endLine + 1] ?? scanned.length)
@@ -349,6 +378,9 @@ function jsxTextParagraphs(source) {
       // Parentheses are ordinary punctuation in copy, so only code-only characters
       // disqualify a line.
       if (/[=;{}[\]`$<>]/.test(text)) return "";
+      // A call, an arrow or a boolean operator is code the braces did not enclose,
+      // because the expression it belongs to spans several lines.
+      if (/\w\(|=>|&&|\|\|/.test(text)) return "";
       // Property signatures and list items in object/type bodies are not prose.
       if (/[,:]\s*$/.test(text)) return "";
       const words = text.trim().split(/\s+/).filter((w) => /[a-zA-Z]/.test(w));
