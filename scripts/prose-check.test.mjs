@@ -267,6 +267,21 @@ test("inline code spans honour their backtick run", () => {
   assert.deepEqual(check(source, "fixture.md"), []);
 });
 
+test("an inline code span wrapped across a line is still code", () => {
+  const source = ["Run `npm run build", "--comprehensive` before the release."].join("\n");
+  assert.deepEqual(check(source, "fixture.md"), []);
+});
+
+test("an unpaired backtick does not swallow the prose after a blank line", () => {
+  const source = ["A line with one ` backtick.", "", "This landscape sentence still fails."].join(
+    "\n",
+  );
+  const found = check(source, "fixture.md");
+  assert.equal(found.length, 1);
+  assert.match(found[0].message, /landscape/);
+  assert.equal(found[0].line, 3);
+});
+
 test("checks prose indented under a list item but not an indented code block", () => {
   const source = [
     "- A list item.",

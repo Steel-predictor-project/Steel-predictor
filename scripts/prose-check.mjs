@@ -31,6 +31,9 @@ const HTML_COMMENT = /<!--[\s\S]*?-->/g;
 // An inline code span closes on a run of backticks as long as the one that opened it,
 // so ``a `b` c`` is one span.
 const INLINE_CODE = /(`+)(.*?)\1/g;
+// The same span wrapped across a line break. A run of three or more opens a fence,
+// which is handled line by line, so only a one or two backtick span counts here.
+const WRAPPED_CODE = /(`{1,2})([^`]*?\n[^`]*?)\1/g;
 // A single CSS value: a length, a custom property, a function call, a colour.
 const CSS_TOKEN =
   /^-?[\d.]+(px|rem|em|vh|vw|vmin|vmax|fr|%|s|ms|deg)?,?$|^var\(--[^)]*\),?$|^[a-z-]+\([^)]*\),?$|^#[0-9a-fA-F]{3,8},?$/;
@@ -397,7 +400,12 @@ function codeParagraphs(source) {
 // Markdown paragraphs, with code fences, front matter, inline code, link targets
 // and HTML tags removed so only prose reaches the rules.
 function markdownParagraphs(source) {
-  const lines = blankRanges(source, HTML_COMMENT).split("\n");
+  const lines = blankRanges(source, HTML_COMMENT)
+    // A blank line ends the paragraph, so a span reaching one is an unpaired backtick.
+    .replace(WRAPPED_CODE, (match) =>
+      /\n\s*\n/.test(match) ? match : match.replace(/[^\n]/g, " "),
+    )
+    .split("\n");
   const kept = [];
   const breaks = new Set();
   // The open fence marker and its length: a four-backtick fence holds three-backtick
